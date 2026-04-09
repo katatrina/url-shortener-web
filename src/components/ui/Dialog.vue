@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { watch, onUnmounted } from 'vue'
+
 const props = defineProps<{
   open: boolean
 }>()
@@ -10,6 +12,27 @@ const emit = defineEmits<{
 function onBackdrop() {
   emit('close')
 }
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    emit('close')
+  }
+}
+
+watch(() => props.open, (isOpen) => {
+  if (isOpen) {
+    document.addEventListener('keydown', onKeydown)
+    document.body.style.overflow = 'hidden'
+  } else {
+    document.removeEventListener('keydown', onKeydown)
+    document.body.style.overflow = ''
+  }
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>

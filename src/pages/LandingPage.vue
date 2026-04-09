@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import { RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Zap, BarChart3, Pencil } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/auth'
 import ShortenForm from '@/components/ShortenForm.vue'
 import Button from '@/components/ui/Button.vue'
 import Card from '@/components/ui/Card.vue'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 const features = [
   {
@@ -57,11 +61,16 @@ const features = [
 
     <!-- CTA -->
     <section class="border-t border-border bg-muted/30 px-4 py-16 text-center sm:px-6 lg:px-8">
-      <h2 class="text-2xl font-bold">Want to manage & track your links?</h2>
-      <p class="mt-2 text-muted-foreground">Create a free account to access your dashboard and analytics.</p>
-      <RouterLink to="/register" class="mt-6 inline-block">
-        <Button size="lg">Create Free Account</Button>
-      </RouterLink>
+      <template v-if="authStore.isAuthenticated">
+        <h2 class="text-2xl font-bold">Welcome back!</h2>
+        <p class="mt-2 text-muted-foreground">Manage and track all your links from the dashboard.</p>
+        <Button size="lg" class="mt-6" @click="router.push('/dashboard')">Go to Dashboard</Button>
+      </template>
+      <template v-else>
+        <h2 class="text-2xl font-bold">Want to manage & track your links?</h2>
+        <p class="mt-2 text-muted-foreground">Create a free account to access your dashboard and analytics.</p>
+        <Button size="lg" class="mt-6" @click="router.push('/register')">Create Free Account</Button>
+      </template>
     </section>
   </div>
 </template>

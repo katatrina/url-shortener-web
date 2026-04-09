@@ -17,7 +17,7 @@ defineProps<{
         :key="c.country"
         class="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm"
       >
-        <span>{{ c.country || 'Unknown' }}</span>
+        <span class="truncate">{{ c.country || 'Unknown' }}</span>
         <span class="ml-4 shrink-0 font-medium">{{ formatNumber(c.clickCount) }}</span>
       </div>
     </div>

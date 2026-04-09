@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
 import { toast } from 'vue-sonner'
-import { RouterLink } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { Copy, Check, BarChart3, Trash2, ExternalLink } from 'lucide-vue-next'
 import Button from '@/components/ui/Button.vue'
 import { formatNumber, formatTimeAgo, truncateUrl } from '@/lib/formatters'
@@ -15,6 +15,7 @@ const emit = defineEmits<{
   delete: [code: string]
 }>()
 
+const router = useRouter()
 const { copy, copied } = useClipboard()
 
 function handleCopy() {
@@ -57,11 +58,9 @@ function handleCopy() {
       </div>
 
       <div class="flex items-center gap-1">
-        <RouterLink :to="`/dashboard/${url.shortCode}`">
-          <Button variant="ghost" size="icon" title="View analytics">
-            <BarChart3 class="h-4 w-4" />
-          </Button>
-        </RouterLink>
+        <Button variant="ghost" size="icon" title="View analytics" @click="router.push(`/dashboard/${url.shortCode}`)">
+          <BarChart3 class="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" title="Delete" @click="emit('delete', url.shortCode)">
           <Trash2 class="h-4 w-4 text-destructive" />
         </Button>

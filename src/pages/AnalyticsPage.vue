@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
-import { useRoute, RouterLink } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { toast } from 'vue-sonner'
 import { getUrl } from '@/api/urls'
 import { getUrlStats } from '@/api/analytics'
@@ -19,6 +19,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-vue-next'
 import type { UrlResponse, UrlStatsResponse } from '@/types'
 
 const route = useRoute()
+const router = useRouter()
 const code = route.params.code as string
 
 const url = ref<UrlResponse | null>(null)
@@ -26,6 +27,7 @@ const stats = ref<UrlStatsResponse | null>(null)
 const days = ref(30)
 const loadingUrl = ref(true)
 const loadingStats = ref(true)
+const statsError = ref(false)
 
 async function fetchUrl() {
   loadingUrl.value = true
@@ -41,10 +43,12 @@ async function fetchUrl() {
 
 async function fetchStats() {
   loadingStats.value = true
+  statsError.value = false
   try {
     const res = await getUrlStats(code, days.value)
     stats.value = res.data.data
   } catch {
+    statsError.value = true
     toast.error('Failed to load analytics')
   } finally {
     loadingStats.value = false
@@ -61,12 +65,10 @@ onMounted(() => {
 
 <template>
   <div>
-    <RouterLink to="/dashboard">
-      <Button variant="ghost" size="sm" class="mb-6">
-        <ArrowLeft class="mr-2 h-4 w-4" />
-        Back to Links
-      </Button>
-    </RouterLink>
+    <Button variant="ghost" size="sm" class="mb-6" @click="router.push('/dashboard')">
+      <ArrowLeft class="mr-2 h-4 w-4" />
+      Back to Links
+    </Button>
 
     <!-- URL info -->
     <div v-if="loadingUrl" class="mb-8 space-y-2">
@@ -94,60 +96,70 @@ onMounted(() => {
       <TimeRangeSelector v-model="days" />
     </div>
 
-    <!-- Chart -->
-    <Card class="mb-8 p-6">
-      <div v-if="loadingStats" class="flex items-center justify-center py-16">
-        <Skeleton class="h-64 w-full" />
-      </div>
-      <div v-else-if="stats && stats.dailyClicks.length > 0">
-        <StatsChart :daily-clicks="stats.dailyClicks" />
-      </div>
-      <div v-else class="py-16 text-center text-muted-foreground">
-        No click data for this time range
-      </div>
-    </Card>
-
-    <!-- Referrers & Countries -->
-    <div class="grid gap-6 sm:grid-cols-2">
-      <Card class="p-6">
-        <div v-if="loadingStats">
-          <Skeleton class="mb-3 h-5 w-32" />
-          <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
-        </div>
-        <ReferrerTable v-else-if="stats" :referrers="stats.topReferrers" />
-      </Card>
-      <Card class="p-6">
-        <div v-if="loadingStats">
-          <Skeleton class="mb-3 h-5 w-32" />
-          <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
-        </div>
-        <CountryTable v-else-if="stats" :countries="stats.topCountries" />
-      </Card>
+    <!-- Stats error -->
+    <div v-if="statsError && !loadingStats" class="mb-8 rounded-lg border border-destructive/50 bg-destructive/5 p-8 text-center">
+      <p class="text-sm text-destructive">Failed to load analytics data.</p>
+      <Button variant="outline" size="sm" class="mt-3" @click="fetchStats">
+        Retry
+      </Button>
     </div>
 
-    <!-- OS, Browsers & Devices -->
-    <div class="mt-6 grid gap-6 sm:grid-cols-3">
-      <Card class="p-6">
-        <div v-if="loadingStats">
-          <Skeleton class="mb-3 h-5 w-32" />
-          <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+    <template v-else>
+      <!-- Chart -->
+      <Card class="mb-8 p-6">
+        <div v-if="loadingStats" class="flex items-center justify-center py-16">
+          <Skeleton class="h-64 w-full" />
         </div>
-        <OsTable v-else-if="stats" :items="stats.topOSes" />
-      </Card>
-      <Card class="p-6">
-        <div v-if="loadingStats">
-          <Skeleton class="mb-3 h-5 w-32" />
-          <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+        <div v-else-if="stats && (stats.dailyClicks ?? []).length > 0">
+          <StatsChart :daily-clicks="stats.dailyClicks" />
         </div>
-        <BrowserTable v-else-if="stats" :items="stats.topBrowsers" />
-      </Card>
-      <Card class="p-6">
-        <div v-if="loadingStats">
-          <Skeleton class="mb-3 h-5 w-32" />
-          <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+        <div v-else class="py-16 text-center text-muted-foreground">
+          No click data for this time range
         </div>
-        <DeviceTable v-else-if="stats" :items="stats.topDevices" />
       </Card>
-    </div>
+
+      <!-- Referrers & Countries -->
+      <div class="grid gap-6 sm:grid-cols-2">
+        <Card class="p-6">
+          <div v-if="loadingStats">
+            <Skeleton class="mb-3 h-5 w-32" />
+            <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+          </div>
+          <ReferrerTable v-else-if="stats" :referrers="stats.topReferrers ?? []" />
+        </Card>
+        <Card class="p-6">
+          <div v-if="loadingStats">
+            <Skeleton class="mb-3 h-5 w-32" />
+            <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+          </div>
+          <CountryTable v-else-if="stats" :countries="stats.topCountries ?? []" />
+        </Card>
+      </div>
+
+      <!-- OS, Browsers & Devices -->
+      <div class="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <Card class="p-6">
+          <div v-if="loadingStats">
+            <Skeleton class="mb-3 h-5 w-32" />
+            <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+          </div>
+          <OsTable v-else-if="stats" :oses="stats.topOSes ?? []" />
+        </Card>
+        <Card class="p-6">
+          <div v-if="loadingStats">
+            <Skeleton class="mb-3 h-5 w-32" />
+            <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+          </div>
+          <BrowserTable v-else-if="stats" :browsers="stats.topBrowsers ?? []" />
+        </Card>
+        <Card class="p-6">
+          <div v-if="loadingStats">
+            <Skeleton class="mb-3 h-5 w-32" />
+            <Skeleton v-for="i in 5" :key="i" class="mb-2 h-9 w-full" />
+          </div>
+          <DeviceTable v-else-if="stats" :devices="stats.topDevices ?? []" />
+        </Card>
+      </div>
+    </template>
   </div>
 </template>

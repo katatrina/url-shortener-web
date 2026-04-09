@@ -28,12 +28,10 @@ function handleLogout() {
       <!-- Desktop nav -->
       <nav class="hidden items-center gap-4 md:flex">
         <template v-if="authStore.isAuthenticated">
-          <RouterLink to="/dashboard">
-            <Button variant="ghost" size="sm">
-              <LayoutDashboard class="mr-2 h-4 w-4" />
-              Dashboard
-            </Button>
-          </RouterLink>
+          <Button variant="ghost" size="sm" @click="router.push('/dashboard')">
+            <LayoutDashboard class="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
           <span class="text-sm text-muted-foreground">{{ authStore.user?.fullName }}</span>
           <Button variant="outline" size="sm" @click="handleLogout">
             <LogOut class="mr-2 h-4 w-4" />
@@ -41,12 +39,8 @@ function handleLogout() {
           </Button>
         </template>
         <template v-else>
-          <RouterLink to="/login">
-            <Button variant="ghost" size="sm">Login</Button>
-          </RouterLink>
-          <RouterLink to="/register">
-            <Button size="sm">Get Started</Button>
-          </RouterLink>
+          <Button variant="ghost" size="sm" @click="router.push('/login')">Login</Button>
+          <Button size="sm" @click="router.push('/register')">Get Started</Button>
         </template>
       </nav>
 

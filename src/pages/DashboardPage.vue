@@ -176,7 +176,7 @@ onMounted(fetchUrls)
       <h2 class="mb-4 text-lg font-semibold">Create New Link</h2>
       <form @submit.prevent="handleCreate" class="space-y-4">
         <div class="space-y-2">
-          <Label>Original URL</Label>
+          <Label>Long URL</Label>
           <Input v-model="createUrl" type="url" placeholder="https://example.com/very/long/url" />
         </div>
         <div class="space-y-2">
