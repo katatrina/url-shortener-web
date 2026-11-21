@@ -1,0 +1,22 @@
+/* App-level base styles. Values come from tokens.css; no raw colors here. */
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+.public-page {
+  box-sizing: border-box;
+  min-height: 100%;
+  padding: var(--space-scaled-xxl) var(--space-static-xxl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
