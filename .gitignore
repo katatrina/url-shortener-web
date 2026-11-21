@@ -1,0 +1,17 @@
+node_modules
+dist
+dist-ssr
+*.local
+*.tsbuildinfo
+
+# Env files (commit .env.example only)
+.env
+.env.*
+!.env.example
+
+# Editor
+.idea
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+*.log
