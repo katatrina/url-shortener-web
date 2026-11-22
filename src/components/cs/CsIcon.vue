@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-// Icons copied from docs/design-system/assets/Icons. Add a file to src/assets/icons to use a new one.
+// Drop an SVG into src/assets/icons to add an icon.
 const files = import.meta.glob<string>('/src/assets/icons/*.svg', {
   query: '?raw',
   import: 'default',

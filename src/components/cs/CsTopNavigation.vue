@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Port of docs/design-system/components/TopNavigation/preview.html.
 // Always rendered in the dark theme, whatever the page theme.
 import type { RouteLocationRaw } from 'vue-router'
 import CsIcon from './CsIcon.vue'

@@ -6,6 +6,11 @@ body,
   height: 100%;
 }
 
+/* Keep space for the scrollbar so the page doesn't shift when it appears. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .public-page {
   box-sizing: border-box;
   min-height: 100%;
