@@ -1,5 +1,4 @@
 <script setup lang="ts">
-// Port of docs/design-system/components/Header/preview.html.
 withDefaults(
   defineProps<{
     variant?: 'h1' | 'h2' | 'h3'

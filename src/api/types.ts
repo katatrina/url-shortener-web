@@ -1,7 +1,7 @@
-// Types mirroring the backend DTOs (katatrina/url-shortener, branch main).
+// Types matching the backend responses.
 // Timestamps are RFC 3339 strings as serialized by Go's time.Time.
 
-// ---- Envelope (internal/response) ----
+// ---- Envelope ----
 
 export interface SuccessEnvelope<T> {
   data: T
@@ -18,7 +18,7 @@ export interface ErrorBody {
   fields?: FieldError[]
 }
 
-// ---- Errors (internal/apperror) ----
+// ---- Errors ----
 
 export type ErrorCode =
   | 'INVALID_JSON_FORMAT'
@@ -41,7 +41,7 @@ export interface FieldError {
   message: string
 }
 
-// ---- User (internal/user/dto.go) ----
+// ---- User ----
 
 export interface SignupRequest {
   email: string
@@ -67,7 +67,7 @@ export interface AuthResponse {
   user: User
 }
 
-// ---- Link (internal/link/dto.go) ----
+// ---- Link ----
 
 export interface CreateLinkRequest {
   destinationUrl: string
