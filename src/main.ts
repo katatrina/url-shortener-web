@@ -1,4 +1,4 @@
-// Design system first: tokens, then component styles (docs/design-system/README.md).
+// Design system styles: tokens first, then components.
 import './styles/tokens.css'
 import './styles/cs.css'
 import './styles/global.css'
@@ -32,4 +32,5 @@ configureApiClient({
 })
 
 app.use(router)
-app.mount('#app')
+// Mount after the first navigation so the first paint is the final layout.
+router.isReady().finally(() => app.mount('#app'))
