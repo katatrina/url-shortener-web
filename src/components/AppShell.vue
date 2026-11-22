@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Page scaffold for signed-in pages (docs/design-system/components/AppLayout/preview.html):
-// dark TopNavigation, then the main column.
+// Layout for signed-in pages: dark top navigation, then the main column.
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import CsTopNavigation, { type TopNavigationUtility } from '@/components/cs/CsTopNavigation.vue'
@@ -23,7 +22,7 @@ const utilities = computed<TopNavigationUtility[]>(() => [
 function onUtilityClick(id: string) {
   if (id === 'logout') {
     auth.logout()
-    router.push({ name: 'login' })
+    router.push({ name: 'home' })
   }
 }
 </script>
