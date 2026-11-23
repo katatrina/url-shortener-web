@@ -8,7 +8,31 @@ export const EMAIL_MAX_LENGTH = 254
 
 /** Pass the trimmed value. */
 export function isValidEmail(email: string): boolean {
-  return email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email)
+  return checkEmail(email) === null
+}
+
+/** Same order as the backend's `required,max=254,ascii_email`. */
+export function checkEmail(email: string): FieldErrorCode | null {
+  if (!email) return 'REQUIRED'
+  if (charCount(email) > EMAIL_MAX_LENGTH) return 'TOO_LONG'
+  if (!EMAIL_PATTERN.test(email)) return 'INVALID_FORMAT'
+  return null
+}
+
+// Password rules, same as the backend's SignupRequest. bcrypt only reads 72 bytes, hence the byte limit.
+export const PASSWORD_MIN_LENGTH = 8
+export const PASSWORD_MAX_LENGTH = 32
+export const PASSWORD_MAX_BYTES = 72
+
+export const utf8Length = (s: string) => new TextEncoder().encode(s).length
+
+/** Don't trim passwords: spaces are valid characters. */
+export function checkPassword(password: string): FieldErrorCode | null {
+  if (!password) return 'REQUIRED'
+  if (charCount(password) < PASSWORD_MIN_LENGTH) return 'TOO_SHORT'
+  if (charCount(password) > PASSWORD_MAX_LENGTH) return 'TOO_LONG'
+  if (utf8Length(password) > PASSWORD_MAX_BYTES) return 'TOO_LONG'
+  return null
 }
 
 // Link rules, same as the backend's CreateLinkRequest. Lengths count characters (code points), like Go runes.
@@ -19,7 +43,8 @@ export const SLUG_MAX_LENGTH = 30
 
 const SLUG_PATTERN = /^[A-Za-z0-9_-]+$/
 
-const charCount = (s: string) => [...s].length
+/** Characters as Go counts runes (code points), not UTF-16 units. */
+export const charCount = (s: string) => [...s].length
 
 export function checkDestinationUrl(url: string): FieldErrorCode | null {
   if (!url) return 'REQUIRED'
