@@ -11,6 +11,9 @@ const GENERIC_MESSAGES: Partial<Record<ApiError['code'], string>> = {
   PAYLOAD_TOO_LARGE: 'Dữ liệu gửi lên quá lớn.',
   INVALID_JSON_FORMAT: 'Dữ liệu gửi lên không hợp lệ.',
   VALIDATION_FAILED: 'Thông tin chưa hợp lệ. Hãy kiểm tra lại các ô bên dưới.',
+  SLUG_ALREADY_EXISTS: 'Slug này đã được dùng, chọn slug khác.',
+  LINK_QUOTA_EXCEEDED: 'Bạn đã dùng hết 10 link. Xóa bớt link để tạo link mới.',
+  LINK_NOT_FOUND: 'Link không tồn tại hoặc đã bị xóa.',
 }
 
 const FALLBACK_MESSAGE = 'Đã có lỗi xảy ra. Hãy thử lại.'
