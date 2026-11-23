@@ -6,6 +6,8 @@ import CsIcon from './CsIcon.vue'
 export interface TableColumn<Item> {
   id: string
   header: string
+  /** Header text for screen readers only, e.g. an actions column. */
+  headerHidden?: boolean
   cell?: (item: Item) => string | number
   width?: number
   minWidth?: number
@@ -22,6 +24,7 @@ const props = withDefaults(
     loadingText?: string
     /** Makes rows clickable (pointer cursor) and emits `row-click`. */
     clickableRows?: boolean
+    rowClass?: (item: T) => string | undefined
   }>(),
   { loadingText: 'Đang tải' },
 )
@@ -60,7 +63,7 @@ function onRowClick(item: T, event: MouseEvent) {
               :style="{ width: column.width && `${column.width}px`, minWidth: column.minWidth && `${column.minWidth}px` }"
               :class="column.align === 'end' && 'cs-table__cell--end'"
             >
-              <span>{{ column.header }}</span>
+              <span><span :class="column.headerHidden && 'cs-sr-only'">{{ column.header }}</span></span>
             </th>
           </tr>
         </thead>
@@ -80,7 +83,7 @@ function onRowClick(item: T, event: MouseEvent) {
             <tr
               v-for="(item, index) in items"
               :key="rowKey(item, index)"
-              :class="clickableRows && 'cs-table__row--clickable'"
+              :class="[clickableRows && 'cs-table__row--clickable', rowClass?.(item)]"
               @click="onRowClick(item, $event)"
             >
               <td v-for="column in columns" :key="column.id" :class="column.align === 'end' && 'cs-table__cell--end'">
