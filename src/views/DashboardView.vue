@@ -68,10 +68,6 @@ const columns: TableColumn<Link>[] = [
     </template>
 
     <template v-else>
-      <CsAlert v-if="quotaReached" type="info">
-        Bạn đã dùng hết {{ LINK_QUOTA }} link. Xóa bớt link để tạo link mới.
-      </CsAlert>
-
       <CsTable
         :items="links ?? []"
         :columns="columns"
