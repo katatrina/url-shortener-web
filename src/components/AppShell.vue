@@ -2,10 +2,13 @@
 // Layout for signed-in pages: dark top navigation, then the main column.
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import CsFlashbar from '@/components/cs/CsFlashbar.vue'
 import CsTopNavigation, { type TopNavigationUtility } from '@/components/cs/CsTopNavigation.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useFlashStore } from '@/stores/flash'
 
 const auth = useAuthStore()
+const flash = useFlashStore()
 const router = useRouter()
 
 const utilities = computed<TopNavigationUtility[]>(() => [
@@ -36,6 +39,7 @@ function onUtilityClick(id: string) {
     />
     <div class="cs-app__body">
       <main class="cs-app__main">
+        <CsFlashbar :items="flash.items" @dismiss="flash.dismiss" />
         <slot />
       </main>
     </div>
