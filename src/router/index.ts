@@ -5,7 +5,12 @@ import { safeRedirect } from './redirect'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', name: 'home', component: () => import('@/views/HomeView.vue') },
+    {
+      path: '/',
+      name: 'home',
+      component: () => import('@/views/HomeView.vue'),
+      meta: { guestOnly: true },
+    },
     {
       path: '/login',
       name: 'login',
