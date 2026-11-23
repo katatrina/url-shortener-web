@@ -45,7 +45,8 @@ provide(formFieldKey, {
     <div class="cs-field__controls"><slot /></div>
     <div v-if="errorText" :id="errorId" class="cs-field__error">
       <CsIcon name="status-warning" />
-      <span>{{ errorText }}</span>
+      <!-- The `error` slot replaces the text, e.g. to add a link. -->
+      <span><slot name="error">{{ errorText }}</slot></span>
     </div>
     <div v-if="constraintText" :id="constraintId" class="cs-field__constraint">{{ constraintText }}</div>
   </div>

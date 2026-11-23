@@ -7,6 +7,7 @@ const GENERIC_MESSAGES: Partial<Record<ApiError['code'], string>> = {
   INTERNAL_SERVER_ERROR: 'Máy chủ gặp lỗi. Hãy thử lại sau.',
   INVALID_RESPONSE: 'Phản hồi từ máy chủ không hợp lệ. Hãy thử lại sau.',
   INCORRECT_CREDENTIALS: 'Email hoặc mật khẩu không đúng',
+  EMAIL_ALREADY_EXISTS: 'Email này đã có tài khoản.',
   UNAUTHORIZED: 'Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.',
   PAYLOAD_TOO_LARGE: 'Dữ liệu gửi lên quá lớn.',
   INVALID_JSON_FORMAT: 'Dữ liệu gửi lên không hợp lệ.',

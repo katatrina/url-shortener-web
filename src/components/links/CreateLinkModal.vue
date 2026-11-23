@@ -10,6 +10,7 @@ import CsButton from '@/components/cs/CsButton.vue'
 import CsFormField from '@/components/cs/CsFormField.vue'
 import CsInput from '@/components/cs/CsInput.vue'
 import CsModal from '@/components/cs/CsModal.vue'
+import { useFieldValidation } from '@/composables/useFieldValidation'
 import { useFlashStore } from '@/stores/flash'
 import { formatNumber } from '@/utils/format'
 import {
@@ -51,19 +52,29 @@ const queryClient = useQueryClient()
 const flash = useFlashStore()
 
 const values = ref({ destinationUrl: '', title: '', slug: '' })
-const errors = ref<Partial<Record<Field, string>>>({})
 const formError = ref<string | null>(null)
+
+const CHECKS: Record<Field, (value: string) => FieldErrorCode | null> = {
+  destinationUrl: checkDestinationUrl,
+  title: checkTitle,
+  slug: checkSlug,
+}
+
+const { errors, onBlur, validateAll, setErrors, reset } = useFieldValidation<Field>({
+  fields: ['destinationUrl', 'title', 'slug'],
+  value: (field) => values.value[field].trim(),
+  check: (field, value) => {
+    const code = CHECKS[field](value)
+    return code && (MESSAGES[field]?.[code] ?? fieldMessage(code, LABELS[field]))
+  },
+})
 
 watch(visible, (open) => {
   if (!open) return
   Object.assign(values.value, { destinationUrl: '', title: '', slug: '' })
-  errors.value = {}
+  reset()
   formError.value = null
 })
-
-function message(field: Field, code: FieldErrorCode): string {
-  return MESSAGES[field]?.[code] ?? fieldMessage(code, LABELS[field])
-}
 
 const { mutate, isPending } = useMutation({
   mutationFn: createLink,
@@ -75,7 +86,7 @@ const { mutate, isPending } = useMutation({
   },
   onError: (error) => {
     if (error instanceof ApiError && error.code === 'SLUG_ALREADY_EXISTS') {
-      errors.value = { slug: errorMessage(error) }
+      setErrors({ slug: errorMessage(error) })
       formError.value = null
       return
     }
@@ -83,30 +94,21 @@ const { mutate, isPending } = useMutation({
       // The dashboard's count is stale; refresh it so the quota state shows there too.
       queryClient.invalidateQueries({ queryKey: linkKeys.all })
     }
-    errors.value = fieldErrors(error, LABELS, MESSAGES)
+    setErrors(fieldErrors(error, LABELS, MESSAGES))
     formError.value = Object.keys(errors.value).length ? null : errorMessage(error)
   },
 })
 
 function onSubmit() {
   if (isPending.value) return
+  if (!validateAll()) {
+    formError.value = null
+    return
+  }
   const body = {
     destinationUrl: values.value.destinationUrl.trim(),
     title: values.value.title.trim(),
     slug: values.value.slug.trim(),
-  }
-
-  const clientErrors: Partial<Record<Field, string>> = {}
-  const checks: [Field, FieldErrorCode | null][] = [
-    ['destinationUrl', checkDestinationUrl(body.destinationUrl)],
-    ['title', checkTitle(body.title)],
-    ['slug', checkSlug(body.slug)],
-  ]
-  for (const [field, code] of checks) if (code) clientErrors[field] = message(field, code)
-  if (Object.keys(clientErrors).length) {
-    errors.value = clientErrors
-    formError.value = null
-    return
   }
 
   // An empty slug must be left out: the backend rejects "" as too short.
@@ -122,11 +124,17 @@ function onSubmit() {
       <CsAlert v-if="formError" type="error">{{ formError }}</CsAlert>
 
       <CsFormField label="URL đích" required :error-text="errors.destinationUrl">
-        <CsInput v-model="values.destinationUrl" type="url" placeholder="https://example.com/trang-can-rut-gon" autofocus />
+        <CsInput
+          v-model="values.destinationUrl"
+          type="url"
+          placeholder="https://example.com/trang-can-rut-gon"
+          autofocus
+          @blur="onBlur('destinationUrl')"
+        />
       </CsFormField>
 
       <CsFormField label="Tiêu đề" description="Để trống thì hiển thị domain của URL đích." :error-text="errors.title">
-        <CsInput v-model="values.title" />
+        <CsInput v-model="values.title" @blur="onBlur('title')" />
       </CsFormField>
 
       <CsFormField
@@ -138,7 +146,12 @@ function onSubmit() {
         <div class="create-link__slug">
           <span class="create-link__domain">{{ SHORT_DOMAIN }}</span>
           <span aria-hidden="true">/</span>
-          <CsInput v-model="values.slug" placeholder="my-link" :aria-label="`Slug sau ${SHORT_DOMAIN}/`" />
+          <CsInput
+            v-model="values.slug"
+            placeholder="my-link"
+            :aria-label="`Slug sau ${SHORT_DOMAIN}/`"
+            @blur="onBlur('slug')"
+          />
         </div>
       </CsFormField>
     </div>
