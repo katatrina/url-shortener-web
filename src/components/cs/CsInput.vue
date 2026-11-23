@@ -16,6 +16,8 @@ const props = withDefaults(
     ariaLabel?: string
     ariaDescribedby?: string
     autocomplete?: string
+    /** Gets focus when a CsModal opens. */
+    autofocus?: boolean
   }>(),
   { type: 'text' },
 )
@@ -48,6 +50,7 @@ const describedBy = computed(
       :disabled="disabled"
       :readonly="readOnly"
       :autocomplete="autocomplete"
+      :data-autofocus="autofocus || undefined"
       :aria-label="ariaLabel"
       :aria-describedby="describedBy"
       :aria-invalid="isInvalid || undefined"
