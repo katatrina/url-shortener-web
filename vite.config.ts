@@ -18,6 +18,32 @@ export default defineConfig({
           primary: 'blue',
           neutral: 'neutral',
         },
+        // Center modals with margins: the default translate can land between pixels,
+        // which blurs edges and makes buttons shift while their color changes.
+        modal: {
+          compoundVariants: [
+            {
+              scrollable: false,
+              fullscreen: false,
+              class: { content: 'inset-0 m-auto h-fit translate-x-0 translate-y-0' },
+            },
+          ],
+        },
+        // Solid buttons stay opaque on hover: the default fades them to 75%, which looks disabled.
+        button: {
+          compoundVariants: [
+            {
+              color: 'primary',
+              variant: 'solid',
+              class: 'hover:bg-(--ui-color-neutral-700) active:bg-(--ui-color-neutral-700)',
+            },
+            {
+              color: 'error',
+              variant: 'solid',
+              class: 'hover:bg-(--ui-color-error-600) active:bg-(--ui-color-error-700)',
+            },
+          ],
+        },
       },
     }),
   ],
