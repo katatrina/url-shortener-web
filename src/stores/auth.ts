@@ -4,7 +4,6 @@ import { getMe } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { queryClient } from '@/api/queryClient'
 import type { User } from '@/api/types'
-import { useFlashStore } from './flash'
 
 const TOKEN_KEY = 'accessToken'
 
@@ -41,9 +40,8 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = null
     user.value = null
     writeToken(null)
-    // Drop cached data and notifications of the previous user.
+    // Drop cached data of the previous user.
     queryClient.clear()
-    useFlashStore().clear()
   }
 
   /** Loads the user for a stored token. Clears the token when the backend rejects it. */

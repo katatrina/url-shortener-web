@@ -4,17 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { errorMessage } from '@/api/errors'
 import { deleteLink, linkKeys } from '@/api/links'
 import type { Link } from '@/api/types'
-import CsAlert from '@/components/cs/CsAlert.vue'
-import CsButton from '@/components/cs/CsButton.vue'
-import CsModal from '@/components/cs/CsModal.vue'
-import { useFlashStore } from '@/stores/flash'
+import { stripProtocol } from '@/utils/format'
 
 const props = defineProps<{ link: Link | null }>()
 const visible = defineModel<boolean>('visible', { required: true })
 const emit = defineEmits<{ deleted: [] }>()
 
 const queryClient = useQueryClient()
-const flash = useFlashStore()
+const toast = useToast()
 const error = ref<string | null>(null)
 
 watch(visible, (open) => {
@@ -26,7 +23,12 @@ const { mutate, isPending } = useMutation({
   onSuccess: () => {
     queryClient.invalidateQueries({ queryKey: linkKeys.all })
     visible.value = false
-    flash.push({ type: 'success', header: 'Đã xóa link', content: props.link?.shortUrl })
+    toast.add({
+      title: 'Đã xóa link',
+      description: props.link?.shortUrl,
+      icon: 'i-lucide-circle-check',
+      color: 'success',
+    })
     emit('deleted')
   },
   onError: (err) => {
@@ -40,31 +42,27 @@ function onDelete() {
 </script>
 
 <template>
-  <CsModal v-model:visible="visible" header="Xóa link này?" size="small">
-    <div class="delete-link">
-      <CsAlert v-if="error" type="error">{{ error }}</CsAlert>
-      <p>Xóa vĩnh viễn <b class="delete-link__url">{{ link?.shortUrl }}</b>? Không thể khôi phục.</p>
-    </div>
+  <UModal v-model:open="visible" title="Xóa link này?" :ui="{ footer: 'bg-muted' }">
+    <template #body>
+      <div class="flex flex-col gap-4">
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" />
+        <div v-if="link" class="rounded-lg border border-default px-4 py-3 text-sm">
+          <div class="font-semibold wrap-anywhere text-highlighted">{{ link.title || stripProtocol(link.shortUrl) }}</div>
+          <div v-if="link.title" class="wrap-anywhere">{{ stripProtocol(link.shortUrl) }}</div>
+          <div class="flex items-center gap-1 text-muted">
+            <UIcon name="i-lucide-corner-down-right" class="size-4 shrink-0" />
+            <span class="truncate">{{ stripProtocol(link.destinationUrl) }}</span>
+          </div>
+        </div>
+        <p class="text-sm">Link sẽ bị xóa vĩnh viễn. Không thể khôi phục.</p>
+      </div>
+    </template>
 
     <template #footer>
-      <CsButton variant="link" @click="visible = false">Hủy</CsButton>
-      <CsButton variant="primary" :loading="isPending" @click="onDelete">Xóa</CsButton>
+      <div class="flex w-full justify-end gap-2">
+        <UButton color="neutral" variant="ghost" @click="visible = false">Hủy</UButton>
+        <UButton color="error" :loading="isPending" @click="onDelete">Xóa</UButton>
+      </div>
     </template>
-  </CsModal>
+  </UModal>
 </template>
-
-<style scoped>
-.delete-link {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-s);
-}
-
-.delete-link p {
-  margin: 0;
-}
-
-.delete-link__url {
-  overflow-wrap: anywhere;
-}
-</style>

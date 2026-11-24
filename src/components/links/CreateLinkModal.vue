@@ -1,17 +1,14 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { h, ref, useId, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ApiError } from '@/api/client'
 import { errorMessage, fieldErrors, fieldMessage, type FieldMessageOverrides } from '@/api/errors'
 import { createLink, linkKeys, SHORT_URL_BASE } from '@/api/links'
 import type { CreateLinkRequest, FieldErrorCode, Link } from '@/api/types'
-import CsAlert from '@/components/cs/CsAlert.vue'
-import CsButton from '@/components/cs/CsButton.vue'
-import CsFormField from '@/components/cs/CsFormField.vue'
-import CsInput from '@/components/cs/CsInput.vue'
-import CsModal from '@/components/cs/CsModal.vue'
+import UIcon from '@nuxt/ui/components/Icon.vue'
+import AnimatedCopyIcon from '@/components/icons/AnimatedCopyIcon.vue'
+import { useCopy } from '@/composables/useCopy'
 import { useFieldValidation } from '@/composables/useFieldValidation'
-import { useFlashStore } from '@/stores/flash'
 import { formatNumber } from '@/utils/format'
 import {
   checkDestinationUrl,
@@ -46,10 +43,13 @@ const MESSAGES: FieldMessageOverrides = {
 const SHORT_DOMAIN = SHORT_URL_BASE.replace(/^https?:\/\//, '')
 
 const visible = defineModel<boolean>('visible', { required: true })
+const props = defineProps<{ initialUrl?: string }>()
 const emit = defineEmits<{ created: [link: Link] }>()
 
 const queryClient = useQueryClient()
-const flash = useFlashStore()
+const toast = useToast()
+const { copiedText, copy } = useCopy()
+const formId = useId()
 
 const values = ref({ destinationUrl: '', title: '', slug: '' })
 const formError = ref<string | null>(null)
@@ -71,7 +71,7 @@ const { errors, onBlur, validateAll, setErrors, reset } = useFieldValidation<Fie
 
 watch(visible, (open) => {
   if (!open) return
-  Object.assign(values.value, { destinationUrl: '', title: '', slug: '' })
+  Object.assign(values.value, { destinationUrl: props.initialUrl ?? '', title: '', slug: '' })
   reset()
   formError.value = null
 })
@@ -81,7 +81,23 @@ const { mutate, isPending } = useMutation({
   onSuccess: (link) => {
     queryClient.invalidateQueries({ queryKey: linkKeys.all })
     visible.value = false
-    flash.push({ type: 'success', header: 'Đã tạo link', copyText: link.shortUrl })
+    toast.add({
+      title: 'Đã tạo link',
+      description: link.shortUrl,
+      icon: 'i-lucide-circle-check',
+      color: 'success',
+      actions: [
+        {
+          label: 'Copy',
+          // A render function, so the icon follows `copiedText` while the toast is open.
+          icon: () => h(UIcon, { name: copiedText.value === link.shortUrl ? 'i-lucide-check' : AnimatedCopyIcon }),
+          color: 'neutral',
+          variant: 'outline',
+          closeOnClick: false,
+          onClick: () => copy(link.shortUrl),
+        },
+      ],
+    })
     emit('created', link)
   },
   onError: (error) => {
@@ -119,65 +135,58 @@ function onSubmit() {
 </script>
 
 <template>
-  <CsModal v-model:visible="visible" header="Tạo link mới" form @submit="onSubmit">
-    <div class="create-link">
-      <CsAlert v-if="formError" type="error">{{ formError }}</CsAlert>
-
-      <CsFormField label="URL đích" required :error-text="errors.destinationUrl">
-        <CsInput
-          v-model="values.destinationUrl"
-          type="url"
-          placeholder="https://example.com/trang-can-rut-gon"
-          autofocus
-          @blur="onBlur('destinationUrl')"
+  <UModal v-model:open="visible" title="Tạo link mới" :ui="{ content: 'max-w-2xl', footer: 'bg-muted' }">
+    <template #body>
+      <UForm :id="formId" :state="values" novalidate class="flex flex-col gap-4" @submit="onSubmit">
+        <UAlert
+          v-if="formError"
+          role="alert"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-circle-alert"
+          :title="formError"
         />
-      </CsFormField>
 
-      <CsFormField label="Tiêu đề" description="Để trống thì hiển thị domain của URL đích." :error-text="errors.title">
-        <CsInput v-model="values.title" @blur="onBlur('title')" />
-      </CsFormField>
-
-      <CsFormField
-        label="Slug"
-        description="Để trống để tự sinh."
-        :constraint-text="`${SLUG_MIN_LENGTH}–${SLUG_MAX_LENGTH} ký tự: chữ cái, số, dấu - và _.`"
-        :error-text="errors.slug"
-      >
-        <div class="create-link__slug">
-          <span class="create-link__domain">{{ SHORT_DOMAIN }}</span>
-          <span aria-hidden="true">/</span>
-          <CsInput
-            v-model="values.slug"
-            placeholder="my-link"
-            :aria-label="`Slug sau ${SHORT_DOMAIN}/`"
-            @blur="onBlur('slug')"
+        <UFormField label="URL đích" required :error="errors.destinationUrl">
+          <UInput
+            v-model="values.destinationUrl"
+            type="url"
+            placeholder="https://example.com/trang-can-rut-gon"
+            autofocus
+            class="w-full"
+            @blur="onBlur('destinationUrl')"
           />
-        </div>
-      </CsFormField>
-    </div>
+        </UFormField>
+
+        <UFormField
+          label="Slug"
+          description="Để trống để tự sinh."
+          :help="`${SLUG_MIN_LENGTH}–${SLUG_MAX_LENGTH} ký tự: chữ cái, số, dấu - và _.`"
+          :error="errors.slug"
+        >
+          <UFieldGroup class="w-full">
+            <UBadge color="neutral" variant="outline" :label="SHORT_DOMAIN" />
+            <UInput
+              v-model="values.slug"
+              placeholder="my-link"
+              class="w-full"
+              :aria-label="`Slug sau ${SHORT_DOMAIN}/`"
+              @blur="onBlur('slug')"
+            />
+          </UFieldGroup>
+        </UFormField>
+
+        <UFormField label="Tiêu đề" description="Để trống thì hiển thị “Untitled” trong danh sách." :error="errors.title">
+          <UInput v-model="values.title" class="w-full" @blur="onBlur('title')" />
+        </UFormField>
+      </UForm>
+    </template>
 
     <template #footer>
-      <CsButton variant="link" @click="visible = false">Hủy</CsButton>
-      <CsButton variant="primary" form-action="submit" :loading="isPending">Tạo</CsButton>
+      <div class="flex w-full justify-end gap-2">
+        <UButton color="neutral" variant="ghost" @click="visible = false">Hủy</UButton>
+        <UButton type="submit" :form="formId" :loading="isPending">Tạo</UButton>
+      </div>
     </template>
-  </CsModal>
+  </UModal>
 </template>
-
-<style scoped>
-.create-link {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-l);
-}
-
-.create-link__slug {
-  display: flex;
-  align-items: center;
-  gap: var(--space-static-xs);
-}
-
-.create-link__domain {
-  color: var(--color-text-form-secondary);
-  white-space: nowrap;
-}
-</style>

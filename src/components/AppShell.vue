@@ -1,76 +1,77 @@
 <script setup lang="ts">
-// Layout for signed-in pages: dark top navigation, then a centered column.
-import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-import CsButtonDropdown from '@/components/cs/CsButtonDropdown.vue'
-import CsFlashbar from '@/components/cs/CsFlashbar.vue'
-import CsTopNavigation from '@/components/cs/CsTopNavigation.vue'
+// Layout for signed-in pages: top bar and sidebar around a scrolling content panel.
+import { computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import AnimatedLinkIcon from '@/components/icons/AnimatedLinkIcon.vue'
 import { BRAND_NAME } from '@/config/brand'
 import { useAuthStore } from '@/stores/auth'
-import { useFlashStore } from '@/stores/flash'
 
 const auth = useAuthStore()
-const flash = useFlashStore()
+const route = useRoute()
 const router = useRouter()
+const toast = useToast()
 
 const initial = computed(() => auth.user?.email.charAt(0).toUpperCase() ?? '')
 
-function onMenuClick(id: string) {
-  if (id !== 'logout') return
+const menuItems = computed<DropdownMenuItem[][]>(() => [
+  [{ type: 'label', label: auth.user?.email ?? '' }],
+  [{ label: 'Đăng xuất', icon: 'i-lucide-log-out', onSelect: logout }],
+])
+
+const navItems = computed<NavigationMenuItem[]>(() => {
+  const active = route.path.startsWith('/links')
+  return [
+    {
+      label: 'Link',
+      icon: AnimatedLinkIcon,
+      to: { name: 'links' },
+      active,
+      ui: { link: active ? 'before:bg-info/10' : '' },
+    },
+  ]
+})
+
+function logout() {
   auth.logout()
   router.push({ name: 'home' })
 }
+
+// Don't show the previous user's notifications after signing out.
+watch(
+  () => auth.token,
+  (token) => {
+    if (!token) toast.clear()
+  },
+)
 </script>
 
 <template>
-  <div class="cs-app">
-    <CsTopNavigation :identity="{ title: BRAND_NAME, to: { name: 'links' } }">
-      <template #utilities>
-        <CsButtonDropdown :items="[{ id: 'logout', text: 'Đăng xuất', iconName: 'sign-out' }]" @item-click="onMenuClick">
-          <template #trigger>
-            <button class="app-shell__avatar" type="button" :aria-label="`Tài khoản ${auth.user?.email ?? ''}`">{{ initial }}</button>
-          </template>
-          <template #header>{{ auth.user?.email }}</template>
-        </CsButtonDropdown>
-      </template>
-    </CsTopNavigation>
-    <div class="cs-app__body">
-      <main class="cs-app__main app-shell__main">
-        <CsFlashbar :items="flash.items" @dismiss="flash.dismiss" />
+  <div data-app-shell class="flex h-dvh flex-col bg-accented text-sm text-default">
+    <header class="flex h-14 shrink-0 items-center justify-between px-6">
+      <ULink :to="{ name: 'links' }" class="text-base font-semibold text-highlighted hover:text-highlighted">
+        {{ BRAND_NAME }}
+      </ULink>
+      <UDropdownMenu :items="menuItems" :content="{ align: 'end' }" :modal="false" :ui="{ content: 'max-w-80' }">
+        <UButton
+          color="neutral"
+          variant="ghost"
+          square
+          class="rounded-full p-1 data-[state=open]:bg-elevated"
+          :aria-label="`Tài khoản ${auth.user?.email ?? ''}`"
+        >
+          <UAvatar :text="initial" size="sm" />
+        </UButton>
+      </UDropdownMenu>
+    </header>
+    <div class="flex min-h-0 flex-1 gap-2 px-2 pb-2">
+      <!-- isolate: the menu draws its item background at z-index -1. -->
+      <aside class="isolate w-56 shrink-0 rounded-lg bg-elevated p-3">
+        <UNavigationMenu :items="navItems" orientation="vertical" color="info" aria-label="Điều hướng chính" />
+      </aside>
+      <main class="relative min-w-0 flex-1 overflow-y-auto rounded-lg bg-default">
         <slot />
       </main>
     </div>
   </div>
 </template>
-
-<style scoped>
-.app-shell__main {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding-top: var(--space-scaled-xxl);
-}
-
-.app-shell__avatar {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 1px solid var(--color-border-segment-wrapper);
-  border-radius: 50%;
-  background: none;
-  color: var(--color-text-body-default);
-  font: inherit;
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-}
-
-.app-shell__avatar:hover {
-  background: var(--color-background-dropdown-item-hover);
-}
-
-.app-shell__avatar:focus-visible {
-  outline: 2px solid var(--color-border-item-focused);
-  outline-offset: 2px;
-}
-</style>
