@@ -11,6 +11,7 @@ import { useFlashStore } from '@/stores/flash'
 
 const props = defineProps<{ link: Link | null }>()
 const visible = defineModel<boolean>('visible', { required: true })
+const emit = defineEmits<{ deleted: [] }>()
 
 const queryClient = useQueryClient()
 const flash = useFlashStore()
@@ -26,6 +27,7 @@ const { mutate, isPending } = useMutation({
     queryClient.invalidateQueries({ queryKey: linkKeys.all })
     visible.value = false
     flash.push({ type: 'success', header: 'Đã xóa link', content: props.link?.shortUrl })
+    emit('deleted')
   },
   onError: (err) => {
     error.value = errorMessage(err)
