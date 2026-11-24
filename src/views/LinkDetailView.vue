@@ -5,20 +5,17 @@ import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { ApiError } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { getLink, linkKeys } from '@/api/links'
-import CsAlert from '@/components/cs/CsAlert.vue'
-import CsBreadcrumbGroup from '@/components/cs/CsBreadcrumbGroup.vue'
-import CsButton from '@/components/cs/CsButton.vue'
-import CsButtonDropdown from '@/components/cs/CsButtonDropdown.vue'
-import CsContainer from '@/components/cs/CsContainer.vue'
-import CsCopyToClipboard from '@/components/cs/CsCopyToClipboard.vue'
-import CsHeader from '@/components/cs/CsHeader.vue'
+import AnimatedCopyIcon from '@/components/icons/AnimatedCopyIcon.vue'
 import DeleteLinkModal from '@/components/links/DeleteLinkModal.vue'
+import LinkActionsMenu from '@/components/links/LinkActionsMenu.vue'
 import LinkStatsSection from '@/components/links/LinkStatsSection.vue'
-import { formatDate, formatTime, stripProtocol, urlDomain } from '@/utils/format'
+import { useCopy } from '@/composables/useCopy'
+import { formatDate, formatTime, stripProtocol } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
+const { copiedText, copy } = useCopy()
 
 // Fixed for this instance: the page is keyed by path, and leaving it must not refetch with an empty id.
 const id = String(route.params.id)
@@ -31,7 +28,8 @@ const { data: link, error, refetch, isFetching } = useQuery({
 const notFound = computed(() => error.value instanceof ApiError && error.value.code === 'LINK_NOT_FOUND')
 const title = computed(() => {
   if (notFound.value) return 'Không tìm thấy link'
-  return link.value ? link.value.title || urlDomain(link.value.destinationUrl) : 'Chi tiết link'
+  // A link without a title goes by its short link.
+  return link.value ? link.value.title || stripProtocol(link.value.shortUrl) : 'Chi tiết link'
 })
 
 const deleteOpen = ref(false)
@@ -44,134 +42,82 @@ async function onDeleted() {
 </script>
 
 <template>
-  <div class="link-detail">
-    <CsBreadcrumbGroup :items="[{ text: 'Link', to: { name: 'links' } }, { text: title }]" />
-
-    <CsHeader v-if="notFound || !link" variant="h1" :class="!error && 'link-detail__loading'">{{ title }}</CsHeader>
-    <header v-else class="link-detail__header">
-      <div class="link-detail__heading">
-        <h1 class="link-detail__short">{{ stripProtocol(link.shortUrl) }}</h1>
-        <div class="link-detail__meta">
-          <b>{{ title }}</b>
-          <a
-            class="link-detail__url"
-            :href="link.destinationUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            :title="link.destinationUrl"
+  <div>
+    <header class="border-b border-default">
+      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
+        <UBreadcrumb
+          class="min-w-0"
+          color="neutral"
+          :ui="{ item: 'first:shrink-0' }"
+          :items="[{ label: 'Link', to: { name: 'links' } }, { label: title }]"
+        />
+        <div v-if="link && !notFound" class="flex shrink-0 items-center gap-2">
+          <UButton
+            :icon="copiedText === link.shortUrl ? 'i-lucide-check' : AnimatedCopyIcon"
+            :aria-label="copiedText === link.shortUrl ? 'Đã copy link' : 'Copy link'"
+            @click="copy(link.shortUrl)"
           >
-            {{ stripProtocol(link.destinationUrl) }}<span class="cs-sr-only"> (mở tab mới)</span>
-          </a>
-          <span :title="`${formatDate(link.createdAt)} ${formatTime(link.createdAt)}`">
-            Tạo ngày {{ formatDate(link.createdAt) }}
-          </span>
+            Copy link
+          </UButton>
+          <LinkActionsMenu label="Thao tác khác" @delete="deleteOpen = true" />
         </div>
-      </div>
-      <div class="link-detail__actions">
-        <CsCopyToClipboard variant="button" :text-to-copy="link.shortUrl">Copy link</CsCopyToClipboard>
-        <CsButtonDropdown :items="[{ id: 'delete', text: 'Xóa', iconName: 'remove' }]" @item-click="deleteOpen = true">
-          <template #trigger><CsButton variant="icon" icon-name="ellipsis" aria-label="Thao tác khác" /></template>
-        </CsButtonDropdown>
       </div>
     </header>
 
-    <CsContainer v-if="notFound">
-      <div class="link-detail__not-found">
-        <p>Link này không tồn tại hoặc đã bị xóa.</p>
-        <CsButton @click="router.push({ name: 'links' })">Về trang Link</CsButton>
-      </div>
-    </CsContainer>
+    <div class="mx-auto flex max-w-7xl flex-col gap-6 p-6">
+      <UEmpty
+        v-if="notFound"
+        icon="i-lucide-link"
+        :title="title"
+        description="Link này không tồn tại hoặc đã bị xóa."
+        :actions="[{ label: 'Về trang Link', to: { name: 'links' }, color: 'neutral', variant: 'outline' }]"
+      />
 
-    <CsAlert v-else-if="error && !link" type="error" header="Không tải được thông tin link">
-      {{ errorMessage(error) }}
-      <template #action>
-        <CsButton :loading="isFetching" @click="refetch()">Thử lại</CsButton>
+      <UAlert
+        v-else-if="error && !link"
+        role="alert"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        title="Không tải được thông tin link"
+        :description="errorMessage(error)"
+        orientation="horizontal"
+      >
+        <template #actions>
+          <UButton color="neutral" variant="outline" :loading="isFetching" @click="refetch()">Thử lại</UButton>
+        </template>
+      </UAlert>
+
+      <template v-else>
+        <!-- As tall as the loaded header, so the stats below don't move. -->
+        <div v-if="!link" role="status" class="flex min-h-20 items-center gap-2 text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải link
+        </div>
+        <div v-else class="flex min-h-20 flex-col justify-center gap-1">
+          <h1 class="text-2xl font-semibold wrap-anywhere text-highlighted">{{ title }}</h1>
+          <div class="flex items-center gap-1 text-muted">
+            <span v-if="link.title" class="shrink-0 text-default">{{ stripProtocol(link.shortUrl) }}</span>
+            <UIcon name="i-lucide-corner-down-right" class="size-4 shrink-0" />
+            <ULink
+              :to="link.destinationUrl"
+              external
+              target="_blank"
+              rel="noopener noreferrer"
+              :title="link.destinationUrl"
+              class="relative truncate text-muted hover:text-highlighted hover:underline"
+            >
+              {{ stripProtocol(link.destinationUrl) }}<span class="sr-only"> (mở tab mới)</span>
+            </ULink>
+          </div>
+          <div class="text-muted" :title="`${formatDate(link.createdAt)} ${formatTime(link.createdAt)}`">
+            Tạo ngày {{ formatDate(link.createdAt) }}
+          </div>
+        </div>
+        <LinkStatsSection :link-id="id" :total-clicks="link?.clicks" />
       </template>
-    </CsAlert>
-
-    <template v-else>
-      <LinkStatsSection :link-id="id" :total-clicks="link?.clicks" />
-    </template>
+    </div>
 
     <DeleteLinkModal v-model:visible="deleteOpen" :link="link ?? null" @deleted="onDeleted" />
   </div>
 </template>
-
-<style scoped>
-.link-detail {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-l);
-}
-
-.link-detail__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-static-l);
-}
-
-/* As tall as the loaded header, so the stats below don't move. */
-.link-detail__loading {
-  min-height: 112px;
-}
-
-.link-detail__heading {
-  min-width: 0;
-}
-
-.link-detail__short {
-  margin: 0;
-  color: var(--color-text-heading-default);
-  font-size: 32px;
-  line-height: 40px;
-  font-weight: var(--font-weight-bold);
-  letter-spacing: var(--letter-spacing-heading-xl);
-  overflow-wrap: anywhere;
-}
-
-.link-detail__meta {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-static-xxs);
-  margin-top: var(--space-static-xxs);
-  color: var(--color-text-body-secondary);
-}
-
-.link-detail__meta b {
-  color: var(--color-text-body-default);
-  overflow-wrap: anywhere;
-}
-
-.link-detail__url {
-  overflow: hidden;
-  color: inherit;
-  text-decoration: none;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.link-detail__url:hover {
-  color: var(--color-text-link-hover);
-  text-decoration: underline;
-}
-
-.link-detail__actions {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: var(--space-static-xs);
-}
-
-.link-detail__not-found {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-scaled-s);
-  padding: var(--space-scaled-l) 0;
-}
-
-.link-detail__not-found p {
-  margin: 0;
-}
-</style>
