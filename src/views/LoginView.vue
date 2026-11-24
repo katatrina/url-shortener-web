@@ -38,7 +38,7 @@ const { mutate, isPending } = useMutation({
   mutationFn: login,
   onSuccess: ({ accessToken, user }) => {
     auth.setSession(accessToken, user)
-    router.replace(safeRedirect(route.query.redirect) ?? { name: 'dashboard' })
+    router.replace(safeRedirect(route.query.redirect) ?? { name: 'links' })
   },
   onError: (error) => {
     setErrors(fieldErrors(error, LABELS))

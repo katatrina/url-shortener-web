@@ -91,7 +91,7 @@ const { mutate, isPending } = useMutation({
       return
     }
     if (error instanceof ApiError && error.code === 'LINK_QUOTA_EXCEEDED') {
-      // The dashboard's count is stale; refresh it so the quota state shows there too.
+      // The link list's count is stale; refresh it so the quota state shows there too.
       queryClient.invalidateQueries({ queryKey: linkKeys.all })
     }
     setErrors(fieldErrors(error, LABELS, MESSAGES))

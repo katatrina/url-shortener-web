@@ -8,15 +8,13 @@ import { getLink, linkKeys } from '@/api/links'
 import CsAlert from '@/components/cs/CsAlert.vue'
 import CsBreadcrumbGroup from '@/components/cs/CsBreadcrumbGroup.vue'
 import CsButton from '@/components/cs/CsButton.vue'
+import CsButtonDropdown from '@/components/cs/CsButtonDropdown.vue'
 import CsContainer from '@/components/cs/CsContainer.vue'
 import CsCopyToClipboard from '@/components/cs/CsCopyToClipboard.vue'
 import CsHeader from '@/components/cs/CsHeader.vue'
-import CsIcon from '@/components/cs/CsIcon.vue'
-import CsKeyValuePairs from '@/components/cs/CsKeyValuePairs.vue'
-import CsSpinner from '@/components/cs/CsSpinner.vue'
 import DeleteLinkModal from '@/components/links/DeleteLinkModal.vue'
 import LinkStatsSection from '@/components/links/LinkStatsSection.vue'
-import { formatDate, formatNumber, formatTime, urlDomain } from '@/utils/format'
+import { formatDate, formatTime, stripProtocol, urlDomain } from '@/utils/format'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,33 +38,47 @@ const deleteOpen = ref(false)
 
 async function onDeleted() {
   // Replace, so Back doesn't return to a deleted link.
-  await router.replace({ name: 'dashboard' })
+  await router.replace({ name: 'links' })
   queryClient.removeQueries({ queryKey: linkKeys.detail(id) })
 }
-
-const INFO = [
-  { id: 'shortUrl', label: 'Link rút gọn' },
-  { id: 'destinationUrl', label: 'URL đích' },
-  { id: 'createdAt', label: 'Ngày tạo' },
-  { id: 'clicks', label: 'Tổng lượt click' },
-]
 </script>
 
 <template>
   <div class="link-detail">
-    <CsBreadcrumbGroup :items="[{ text: 'Dashboard', to: { name: 'dashboard' } }, { text: title }]" />
+    <CsBreadcrumbGroup :items="[{ text: 'Link', to: { name: 'links' } }, { text: title }]" />
 
-    <CsHeader variant="h1" class="link-detail__header">
-      {{ title }}
-      <template v-if="link && !notFound" #actions>
-        <CsButton @click="deleteOpen = true">Xóa</CsButton>
-      </template>
-    </CsHeader>
+    <CsHeader v-if="notFound || !link" variant="h1" :class="!error && 'link-detail__loading'">{{ title }}</CsHeader>
+    <header v-else class="link-detail__header">
+      <div class="link-detail__heading">
+        <h1 class="link-detail__short">{{ stripProtocol(link.shortUrl) }}</h1>
+        <div class="link-detail__meta">
+          <b>{{ title }}</b>
+          <a
+            class="link-detail__url"
+            :href="link.destinationUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            :title="link.destinationUrl"
+          >
+            {{ stripProtocol(link.destinationUrl) }}<span class="cs-sr-only"> (mở tab mới)</span>
+          </a>
+          <span :title="`${formatDate(link.createdAt)} ${formatTime(link.createdAt)}`">
+            Tạo ngày {{ formatDate(link.createdAt) }}
+          </span>
+        </div>
+      </div>
+      <div class="link-detail__actions">
+        <CsCopyToClipboard variant="button" :text-to-copy="link.shortUrl">Copy link</CsCopyToClipboard>
+        <CsButtonDropdown :items="[{ id: 'delete', text: 'Xóa', iconName: 'remove' }]" @item-click="deleteOpen = true">
+          <template #trigger><CsButton variant="icon" icon-name="ellipsis" aria-label="Thao tác khác" /></template>
+        </CsButtonDropdown>
+      </div>
+    </header>
 
     <CsContainer v-if="notFound">
       <div class="link-detail__not-found">
         <p>Link này không tồn tại hoặc đã bị xóa.</p>
-        <CsButton @click="router.push({ name: 'dashboard' })">Về Dashboard</CsButton>
+        <CsButton @click="router.push({ name: 'links' })">Về trang Link</CsButton>
       </div>
     </CsContainer>
 
@@ -78,34 +90,7 @@ const INFO = [
     </CsAlert>
 
     <template v-else>
-      <CsContainer>
-        <template #header><CsHeader variant="h2">Thông tin link</CsHeader></template>
-        <CsSpinner v-if="!link" />
-        <CsKeyValuePairs v-else :items="INFO">
-          <template #value-shortUrl>
-            <CsCopyToClipboard variant="inline" :text-to-copy="link.shortUrl" :aria-label="`Copy ${link.shortUrl}`" />
-          </template>
-          <template #value-destinationUrl>
-            <a
-              class="cs-link link-detail__url"
-              :href="link.destinationUrl"
-              target="_blank"
-              rel="noopener noreferrer"
-              :title="link.destinationUrl"
-            >
-              <span class="link-detail__url-text">{{ link.destinationUrl }}</span>
-              <CsIcon name="external" />
-              <span class="cs-sr-only">(mở tab mới)</span>
-            </a>
-          </template>
-          <template #value-createdAt>
-            <span :title="`${formatDate(link.createdAt)} ${formatTime(link.createdAt)}`">{{ formatDate(link.createdAt) }}</span>
-          </template>
-          <template #value-clicks>{{ formatNumber(link.clicks) }}</template>
-        </CsKeyValuePairs>
-      </CsContainer>
-
-      <LinkStatsSection :link-id="id" />
+      <LinkStatsSection :link-id="id" :total-clicks="link?.clicks" />
     </template>
 
     <DeleteLinkModal v-model:visible="deleteOpen" :link="link ?? null" @deleted="onDeleted" />
@@ -120,20 +105,62 @@ const INFO = [
 }
 
 .link-detail__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-static-l);
+}
+
+/* As tall as the loaded header, so the stats below don't move. */
+.link-detail__loading {
+  min-height: 112px;
+}
+
+.link-detail__heading {
+  min-width: 0;
+}
+
+.link-detail__short {
+  margin: 0;
+  color: var(--color-text-heading-default);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--letter-spacing-heading-xl);
+  overflow-wrap: anywhere;
+}
+
+.link-detail__meta {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-static-xxs);
+  margin-top: var(--space-static-xxs);
+  color: var(--color-text-body-secondary);
+}
+
+.link-detail__meta b {
+  color: var(--color-text-body-default);
   overflow-wrap: anywhere;
 }
 
 .link-detail__url {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-static-xxs);
-  max-width: 100%;
-}
-
-.link-detail__url-text {
   overflow: hidden;
+  color: inherit;
+  text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.link-detail__url:hover {
+  color: var(--color-text-link-hover);
+  text-decoration: underline;
+}
+
+.link-detail__actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-static-xs);
 }
 
 .link-detail__not-found {
@@ -146,9 +173,5 @@ const INFO = [
 
 .link-detail__not-found p {
   margin: 0;
-}
-
-.link-detail :deep(.cs-kv .cs-btn--icon) {
-  margin-block: calc(-1 * var(--space-button-vertical));
 }
 </style>

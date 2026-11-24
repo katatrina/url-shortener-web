@@ -142,6 +142,15 @@ const tooltipStyle = computed(() => {
 
 .cs-chart__bar {
   fill: var(--color-charts-palette-categorical-1);
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: cs-chart-grow 250ms cubic-bezier(0, 0, 0, 1);
+}
+
+@keyframes cs-chart-grow {
+  from {
+    transform: scaleY(0);
+  }
 }
 
 .cs-chart__bar--dim {

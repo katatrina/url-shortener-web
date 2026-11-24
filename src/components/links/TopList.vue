@@ -18,7 +18,9 @@ defineProps<{
           <span class="top-list__share">({{ Math.round((item.clicks / total) * 100) }}%)</span>
         </span>
       </div>
-      <div class="top-list__bar" :style="{ width: `${(item.clicks / total) * 100}%` }"></div>
+      <div class="top-list__track" aria-hidden="true">
+        <div class="top-list__bar" :style="{ width: `${(item.clicks / total) * 100}%` }"></div>
+      </div>
     </li>
   </ol>
 </template>
@@ -52,10 +54,15 @@ defineProps<{
   color: var(--color-text-body-secondary);
 }
 
-.top-list__bar {
-  height: 8px;
+.top-list__track {
   margin-top: var(--space-static-xxs);
-  border-radius: 0 4px 4px 0;
+  border-radius: 4px;
+  background: var(--color-background-progress-bar-default);
+}
+
+.top-list__bar {
+  height: 12px;
+  border-radius: 4px;
   background: var(--color-charts-palette-categorical-1);
 }
 </style>

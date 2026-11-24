@@ -42,3 +42,7 @@ export function countryName(code: string): string {
   if (!/^[A-Za-z]{2}$/.test(code)) return 'Không xác định'
   return new Intl.DisplayNames(['vi'], { type: 'region' }).of(code.toUpperCase()) ?? code
 }
+
+export function stripProtocol(url: string): string {
+  return url.replace(/^https?:\/\//i, '')
+}

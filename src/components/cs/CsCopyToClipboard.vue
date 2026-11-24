@@ -11,8 +11,8 @@ const STATUS_MS = 2000
 const props = withDefaults(
   defineProps<{
     textToCopy: string
-    /** `inline` shows the text before the button. */
-    variant?: 'icon' | 'inline'
+    /** `inline` shows the text before the button; `button` is a primary button labeled by the slot. */
+    variant?: 'icon' | 'inline' | 'button'
     ariaLabel?: string
   }>(),
   { variant: 'icon', ariaLabel: 'Copy' },
@@ -44,7 +44,8 @@ onBeforeUnmount(() => clearTimeout(timer))
     <span v-if="variant === 'inline'" class="cs-copy__text">{{ textToCopy }}</span>
     <PopoverRoot :open="status !== null" @update:open="onOpenChange">
       <PopoverAnchor as-child>
-        <CsButton variant="icon" icon-name="copy" :aria-label="ariaLabel" @click="copy" />
+        <CsButton v-if="variant === 'button'" variant="primary" icon-name="copy" @click="copy"><slot /></CsButton>
+        <CsButton v-else variant="icon" icon-name="copy" :aria-label="ariaLabel" @click="copy" />
       </PopoverAnchor>
       <PopoverPortal>
         <PopoverContent
@@ -74,7 +75,8 @@ onBeforeUnmount(() => clearTimeout(timer))
   overflow-wrap: anywhere;
 }
 
-.cs-copy__popover {
+/* Global: Reka puts the scope id on its positioning wrapper, not on the popover. */
+:global(.cs-copy__popover) {
   z-index: 6000;
   display: inline-flex;
   align-items: center;

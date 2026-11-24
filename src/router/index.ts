@@ -24,9 +24,9 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
-      path: '/dashboard',
-      name: 'dashboard',
-      component: () => import('@/views/DashboardView.vue'),
+      path: '/links',
+      name: 'links',
+      component: () => import('@/views/LinksView.vue'),
       meta: { requiresAuth: true },
     },
     {
@@ -51,7 +51,7 @@ router.beforeEach(async (to) => {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.guestOnly && auth.isAuthenticated) {
-    return safeRedirect(to.query.redirect) ?? { name: 'dashboard' }
+    return safeRedirect(to.query.redirect) ?? { name: 'links' }
   }
 })
 
