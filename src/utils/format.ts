@@ -36,3 +36,9 @@ export function urlDomain(url: string): string {
     return url
   }
 }
+
+/** Vietnamese country name of an ISO 3166-1 alpha-2 code. */
+export function countryName(code: string): string {
+  if (!/^[A-Za-z]{2}$/.test(code)) return 'Không xác định'
+  return new Intl.DisplayNames(['vi'], { type: 'region' }).of(code.toUpperCase()) ?? code
+}

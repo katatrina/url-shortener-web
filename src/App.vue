@@ -7,7 +7,7 @@ const route = useRoute()
 
 <template>
   <AppShell v-if="route.meta.requiresAuth">
-    <RouterView />
+    <RouterView :key="route.path" />
   </AppShell>
   <main v-else class="public-page">
     <RouterView />
