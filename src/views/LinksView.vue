@@ -22,6 +22,8 @@ const createOpen = ref(false)
 const deleteOpen = ref(false)
 const linkToDelete = ref<Link | null>(null)
 
+const heading = ref<HTMLElement | null>(null)
+
 function confirmDelete(link: Link) {
   linkToDelete.value = link
   deleteOpen.value = true
@@ -68,7 +70,7 @@ onBeforeUnmount(() => {
   <div>
     <header class="border-b border-default">
       <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
-        <h1 class="text-lg font-semibold text-highlighted">
+        <h1 ref="heading" tabindex="-1" class="text-lg font-semibold text-highlighted outline-none">
           Link
           <span v-if="links" class="font-normal text-muted">({{ links.length }}/{{ LINK_QUOTA }})</span>
         </h1>
@@ -119,6 +121,6 @@ onBeforeUnmount(() => {
     </div>
 
     <CreateLinkModal v-model:visible="createOpen" :initial-url="initialUrl" @created="onCreated" />
-    <DeleteLinkModal v-model:visible="deleteOpen" :link="linkToDelete" />
+    <DeleteLinkModal v-model:visible="deleteOpen" :link="linkToDelete" @closed="heading?.focus()" />
   </div>
 </template>
