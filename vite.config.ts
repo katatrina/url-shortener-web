@@ -9,6 +9,8 @@ export default defineConfig({
     ui({
       // Light theme only for now (see Notion 03 — UI/UX Design).
       colorMode: false,
+      // Bundle the icons used in src/, so none are fetched from the Iconify API at runtime.
+      icon: { clientBundle: { scan: { globInclude: ['src/**/*.{vue,ts}'] } } },
       ui: {
         colors: {
           // `primary` is overridden to near-black in src/assets/css/main.css.

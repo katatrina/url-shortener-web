@@ -34,8 +34,8 @@ const RULES = [
   },
   {
     name: 'Shadow on a surface',
-    hint: 'Cards and sections use a 1px border, not a shadow. Floating layers (modal, dropdown, toast) get theirs from Nuxt UI.',
-    re: /\bshadow(?:-(?:xs|sm|md|lg|xl|2xl|inner))?\b(?!-)|box-shadow\s*:/g,
+    hint: 'Cards and sections use a 1px border, not a shadow (hover:shadow-* is fine). Floating layers (modal, dropdown, toast) get theirs from Nuxt UI.',
+    re: /(?<!\bhover:)\bshadow(?:-(?:xs|sm|md|lg|xl|2xl|inner))?\b(?!-)|box-shadow\s*:/g,
   },
   {
     name: 'Blur / glass effect',

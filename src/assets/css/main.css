@@ -32,6 +32,22 @@
   --ui-text-muted: var(--ui-color-neutral-600);
   --ui-text-dimmed: var(--ui-color-neutral-500);
 
+  /*
+   * Surfaces and borders: the big blocks contrast, what's inside them stays light.
+   *   accented  neutral-200  app background
+   *   elevated  neutral-100  sidebar, button hover, highlighted row
+   *   muted     neutral-50   modal footer
+   *   default   white        content panel, cards
+   */
+  --ui-bg-muted: var(--ui-color-neutral-50);
+  --ui-bg-elevated: var(--ui-color-neutral-100);
+  --ui-bg-accented: var(--ui-color-neutral-200);
+  --ui-border: var(--ui-color-neutral-200);
+  --ui-border-accented: var(--ui-color-neutral-300);
+
+  /* Selected nav item and data. One step darker than the default, so text in it stays readable. */
+  --ui-info: var(--ui-color-info-600);
+
   /* Radius base: inputs and buttons (rounded-md) 9px, cards and modals (rounded-lg) 12px. */
   --ui-radius: 0.375rem;
 
@@ -39,9 +55,16 @@
   --ui-chart-1: var(--ui-color-info-500);
 }
 
-html {
-  /* Keep space for the scrollbar so the page doesn't shift when it appears. */
+html:not(:has([data-app-shell])) {
+  /* Keep space for the scrollbar so the page doesn't shift when it appears. The app shell scrolls its own panel. */
   scrollbar-gutter: stable;
+}
+
+/* Tailwind v4 leaves buttons with the arrow cursor. In the base layer, so cursor-* utilities still win. */
+@layer base {
+  :is(button, [role="button"], [role="menuitem"], [role="option"]):not(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: pointer;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
