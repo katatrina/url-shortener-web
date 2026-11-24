@@ -12,6 +12,7 @@ import CsContainer from '@/components/cs/CsContainer.vue'
 import CsHeader from '@/components/cs/CsHeader.vue'
 import CsSegmentedControl from '@/components/cs/CsSegmentedControl.vue'
 import CsSpinner from '@/components/cs/CsSpinner.vue'
+import StatCard from '@/components/StatCard.vue'
 import { countryName, formatDate, formatNumber, formatTime } from '@/utils/format'
 import TopList from './TopList.vue'
 
@@ -24,7 +25,8 @@ const RANGES: { id: StatsRange; text: string }[] = [
   { id: '90d', text: '90 ngày' },
 ]
 
-const props = defineProps<{ linkId: string }>()
+/** `totalClicks` is all-time; unknown while the link loads. */
+const props = defineProps<{ linkId: string; totalClicks?: number }>()
 
 const route = useRoute()
 const router = useRouter()
@@ -59,6 +61,8 @@ const {
 
 const clicks = computed(() => stats.value?.summary.clicks ?? 0)
 
+const rangeText = computed(() => RANGES.find((option) => option.id === range.value)?.text)
+
 const comparison = computed(() => {
   const previous = stats.value?.summary.previousClicks
   if (previous === null || previous === undefined) return null
@@ -66,7 +70,7 @@ const comparison = computed(() => {
   const versus = `so với khoảng trước (${formatNumber(previous)})`
   if (clicks.value === previous) return `Không đổi ${versus}`
   const percent = formatNumber(Math.round((Math.abs(clicks.value - previous) / previous) * 100))
-  return `${clicks.value > previous ? 'Tăng' : 'Giảm'} ${percent}% ${versus}`
+  return `${clicks.value > previous ? '▲ Tăng' : '▼ Giảm'} ${percent}% ${versus}`
 })
 
 const chartItems = computed<BarChartItem[]>(() => {
@@ -118,15 +122,14 @@ const referrers = computed(() =>
     </CsAlert>
 
     <div v-else class="stats__grid" :class="isPlaceholderData && 'stats__grid--stale'" :aria-busy="isFetching">
-      <CsContainer>
-        <template #header><CsHeader variant="h3">Tổng lượt click</CsHeader></template>
-        <CsSpinner v-if="!stats" />
-        <template v-else>
-          <div v-if="clicks" class="stats__total">{{ formatNumber(clicks) }}</div>
-          <div v-else class="stats__empty">Chưa có lượt click nào</div>
-          <div v-if="comparison" class="stats__comparison">{{ comparison }}</div>
-        </template>
-      </CsContainer>
+      <StatCard :label="`Lượt click trong ${rangeText} qua`">
+        {{ stats ? formatNumber(clicks) : '–' }}
+        <template #detail>{{ comparison ?? '\u00a0' }}</template>
+      </StatCard>
+      <StatCard label="Tổng lượt click">
+        {{ totalClicks === undefined ? '–' : formatNumber(totalClicks) }}
+        <template #detail>Toàn thời gian</template>
+      </StatCard>
 
       <CsContainer class="stats__chart">
         <template #header><CsHeader variant="h3">Lượt click theo thời gian</CsHeader></template>
@@ -141,14 +144,14 @@ const referrers = computed(() =>
         <div v-else class="stats__empty">Chưa có lượt click nào</div>
       </CsContainer>
 
-      <CsContainer class="stats__half">
+      <CsContainer>
         <template #header><CsHeader variant="h3">Top quốc gia</CsHeader></template>
         <CsSpinner v-if="!stats" />
         <TopList v-else-if="clicks" :items="countries" :total="clicks" />
         <div v-else class="stats__empty">Chưa có lượt click nào</div>
       </CsContainer>
 
-      <CsContainer class="stats__half">
+      <CsContainer>
         <template #header><CsHeader variant="h3">Top nguồn truy cập</CsHeader></template>
         <CsSpinner v-if="!stats" />
         <TopList v-else-if="clicks" :items="referrers" :total="clicks" />
@@ -167,7 +170,7 @@ const referrers = computed(() =>
 
 .stats__grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-scaled-l);
 }
 
@@ -176,23 +179,7 @@ const referrers = computed(() =>
 }
 
 .stats__chart {
-  grid-column: span 3;
-}
-
-.stats__half {
-  grid-column: span 2;
-}
-
-.stats__total {
-  color: var(--color-text-heading-default);
-  font-size: var(--font-size-display-l);
-  line-height: var(--line-height-display-l);
-  font-weight: var(--font-weight-display-l);
-  letter-spacing: var(--letter-spacing-display-l);
-}
-
-.stats__comparison {
-  color: var(--color-text-body-secondary);
+  grid-column: 1 / -1;
 }
 
 .stats__empty {

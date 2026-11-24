@@ -11,6 +11,12 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Light gray page, so white containers stand out. */
+body,
+.cs-app {
+  background: var(--color-background-cell-shaded);
+}
+
 .public-page {
   box-sizing: border-box;
   min-height: 100%;

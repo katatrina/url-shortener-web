@@ -65,7 +65,7 @@ const { mutate, isPending } = useMutation({
   mutationFn: signup,
   onSuccess: ({ accessToken, user }) => {
     auth.setSession(accessToken, user)
-    router.replace(safeRedirect(route.query.redirect) ?? { name: 'dashboard' })
+    router.replace(safeRedirect(route.query.redirect) ?? { name: 'links' })
   },
   onError: (error) => {
     if (error instanceof ApiError && error.code === 'EMAIL_ALREADY_EXISTS') {
