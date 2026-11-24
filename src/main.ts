@@ -1,4 +1,6 @@
-// Design system styles: tokens first, then components.
+// Theme (Tailwind + Nuxt UI) first.
+import './assets/css/main.css'
+// Legacy Cloudscape styles: only for screens not yet migrated. Delete with src/components/cs/.
 import './styles/tokens.css'
 import './styles/cs.css'
 import './styles/global.css'
@@ -6,6 +8,7 @@ import './styles/global.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
+import ui from '@nuxt/ui/vue-plugin'
 import App from './App.vue'
 import router from './router'
 import { configureApiClient } from './api/client'
@@ -32,5 +35,6 @@ configureApiClient({
 })
 
 app.use(router)
+app.use(ui)
 // Mount after the first navigation so the first paint is the final layout.
 router.isReady().finally(() => app.mount('#app'))

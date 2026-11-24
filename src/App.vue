@@ -6,10 +6,12 @@ const route = useRoute()
 </script>
 
 <template>
-  <AppShell v-if="route.meta.requiresAuth">
-    <RouterView :key="route.path" />
-  </AppShell>
-  <main v-else class="public-page">
-    <RouterView />
-  </main>
+  <UApp>
+    <AppShell v-if="route.meta.requiresAuth">
+      <RouterView :key="route.path" />
+    </AppShell>
+    <main v-else class="public-page">
+      <RouterView />
+    </main>
+  </UApp>
 </template>
