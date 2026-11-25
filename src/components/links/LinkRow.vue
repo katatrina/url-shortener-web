@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import type { Link } from '@/api/types'
 import AnimatedClickIcon from '@/components/icons/AnimatedClickIcon.vue'
+import { faviconUrl } from '@/utils/favicon'
 import { formatDate, formatNumber, formatTime, stripProtocol } from '@/utils/format'
 import CopyButton from './CopyButton.vue'
 import LinkActionsMenu from './LinkActionsMenu.vue'
@@ -11,6 +12,19 @@ const emit = defineEmits<{ delete: [] }>()
 
 // For screen readers: an untitled link goes by its short link.
 const name = computed(() => props.link.title || stripProtocol(props.link.shortUrl))
+// Google answers with a blurry 16px globe when a site has no favicon; ours is sharper.
+const tooSmall = ref<string | null>(null)
+const favicon = computed(() => {
+  const url = faviconUrl(props.link.destinationUrl)
+  return url && url !== tooSmall.value ? url : undefined
+})
+
+// UAvatar also passes this to the globe icon, which emits its own `load` without an event.
+function onFaviconLoad(event: Event | string) {
+  if (typeof event === 'string' || !(event.target instanceof HTMLImageElement)) return
+  if (event.target.naturalWidth <= 16) tooSmall.value = favicon.value ?? null
+}
+
 const detail = computed(() => ({ name: 'link-detail', params: { id: props.link.id } }))
 </script>
 
@@ -19,6 +33,18 @@ const detail = computed(() => ({ name: 'link-detail', params: { id: props.link.i
     class="flex items-center gap-4 rounded-lg border border-default px-4 py-3 transition hover:shadow-md"
     :class="highlighted && 'bg-elevated'"
   >
+    <!-- Falls back to the globe when there is no favicon or it can't be loaded. -->
+    <UAvatar
+      :src="favicon"
+      alt=""
+      icon="i-lucide-globe"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      @load="onFaviconLoad"
+      class="size-10 border border-default bg-default"
+      :ui="{ image: 'size-5 rounded-none object-contain', icon: 'size-5' }"
+    />
+
     <div class="min-w-0 flex-1">
       <ULink
         :to="detail"
