@@ -16,7 +16,7 @@ export function useCopy() {
       timer = setTimeout(() => (copiedText.value = null), COPIED_MS)
     } catch {
       copiedText.value = null
-      toast.add({ id: 'copy', title: 'Không copy được link', icon: 'i-lucide-circle-alert', color: 'error', duration: 5000 })
+      toast.add({ id: 'copy', title: 'Không copy được link', icon: 'i-lucide-circle-alert', color: 'error', close: false })
     }
   }
 

@@ -5,6 +5,7 @@ import { ApiError } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { deleteLink, linkKeys } from '@/api/links'
 import type { Link } from '@/api/types'
+import { useDelayedFlag } from '@/composables/useDelayedFlag'
 import { stripProtocol } from '@/utils/format'
 
 const props = defineProps<{ link: Link | null }>()
@@ -22,24 +23,28 @@ watch(visible, (open) => {
 
 const { mutate, isPending } = useMutation({
   mutationFn: deleteLink,
-  onSuccess: onDeleted,
-  onError: (err) => {
+  onSuccess: (_data, id) => onDeleted(id),
+  onError: (err, id) => {
     // Already deleted somewhere else: same result for the user.
-    if (err instanceof ApiError && err.code === 'LINK_NOT_FOUND') return onDeleted()
+    if (err instanceof ApiError && err.code === 'LINK_NOT_FOUND') return onDeleted(id)
     error.value = errorMessage(err)
   },
 })
 
-function onDeleted() {
+// The lock below is immediate; only the look of it waits.
+const showPending = useDelayedFlag(isPending)
+
+function close() {
+  if (!isPending.value) visible.value = false
+}
+
+function onDeleted(id: string) {
+  // Update the list right away, so it's correct even if the refetch fails.
+  queryClient.setQueryData<Link[]>(linkKeys.all, (links) => links?.filter((link) => link.id !== id))
   queryClient.invalidateQueries({ queryKey: linkKeys.all })
   deleted = true
   visible.value = false
-  toast.add({
-    title: 'Đã xóa link',
-    description: props.link?.shortUrl,
-    icon: 'i-lucide-circle-check',
-    color: 'success',
-  })
+  toast.add({ title: 'Đã xóa link', icon: 'i-lucide-circle-check', color: 'success', close: false })
   emit('deleted')
 }
 
@@ -51,7 +56,7 @@ function onAfterLeave() {
 }
 
 function onDelete() {
-  if (!props.link || isPending.value) return
+  if (!props.link || isPending.value || deleted) return
   error.value = null
   mutate(props.link.id)
 }
@@ -59,11 +64,12 @@ function onDelete() {
 
 <template>
   <UModal
-    v-model:open="visible"
+    :open="visible"
     title="Xóa link này?"
     :dismissible="!isPending"
-    :close="{ disabled: isPending }"
+    :close="{ disabled: showPending }"
     :ui="{ footer: 'bg-muted' }"
+    @update:open="(open) => !open && close()"
     @after:leave="onAfterLeave"
   >
     <template #body>
@@ -83,8 +89,8 @@ function onDelete() {
 
     <template #footer>
       <div class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="ghost" :disabled="isPending" @click="visible = false">Hủy</UButton>
-        <UButton color="error" :loading="isPending" @click="onDelete">Xóa</UButton>
+        <UButton color="neutral" variant="ghost" :disabled="showPending" @click="close">Hủy</UButton>
+        <UButton color="error" :loading="showPending" @click="onDelete">Xóa</UButton>
       </div>
     </template>
   </UModal>

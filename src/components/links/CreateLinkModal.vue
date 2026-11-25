@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { h, ref, useId, watch } from 'vue'
+import { ref, useId, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { ApiError } from '@/api/client'
 import { errorMessage, fieldErrors, fieldMessage, type FieldMessageOverrides } from '@/api/errors'
 import { createLink, linkKeys, SHORT_URL_BASE } from '@/api/links'
 import type { CreateLinkRequest, FieldErrorCode, Link } from '@/api/types'
-import UIcon from '@nuxt/ui/components/Icon.vue'
-import AnimatedCopyIcon from '@/components/icons/AnimatedCopyIcon.vue'
-import { useCopy } from '@/composables/useCopy'
+import { useDelayedFlag } from '@/composables/useDelayedFlag'
 import { useFieldValidation } from '@/composables/useFieldValidation'
 import { formatNumber } from '@/utils/format'
 import {
@@ -48,7 +46,6 @@ const emit = defineEmits<{ created: [link: Link] }>()
 
 const queryClient = useQueryClient()
 const toast = useToast()
-const { copiedText, copy } = useCopy()
 const formId = useId()
 
 const values = ref({ destinationUrl: '', title: '', slug: '' })
@@ -79,25 +76,11 @@ watch(visible, (open) => {
 const { mutate, isPending } = useMutation({
   mutationFn: createLink,
   onSuccess: (link) => {
+    // Update the list right away, so it's correct even if the refetch fails.
+    queryClient.setQueryData<Link[]>(linkKeys.all, (links) => links && [link, ...links.filter(({ id }) => id !== link.id)])
     queryClient.invalidateQueries({ queryKey: linkKeys.all })
     visible.value = false
-    toast.add({
-      title: 'Đã tạo link',
-      description: link.shortUrl,
-      icon: 'i-lucide-circle-check',
-      color: 'success',
-      actions: [
-        {
-          label: 'Copy',
-          // A render function, so the icon follows `copiedText` while the toast is open.
-          icon: () => h(UIcon, { name: copiedText.value === link.shortUrl ? 'i-lucide-check' : AnimatedCopyIcon }),
-          color: 'neutral',
-          variant: 'outline',
-          closeOnClick: false,
-          onClick: () => copy(link.shortUrl),
-        },
-      ],
-    })
+    toast.add({ title: 'Đã tạo link', icon: 'i-lucide-circle-check', color: 'success', close: false })
     emit('created', link)
   },
   onError: (error) => {
@@ -115,8 +98,10 @@ const { mutate, isPending } = useMutation({
   },
 })
 
+const showPending = useDelayedFlag(isPending)
+
 function onSubmit() {
-  if (isPending.value) return
+  if (isPending.value || !visible.value) return
   if (!validateAll()) {
     formError.value = null
     return
@@ -135,7 +120,7 @@ function onSubmit() {
 </script>
 
 <template>
-  <UModal v-model:open="visible" title="Tạo link mới" :ui="{ content: 'max-w-2xl', footer: 'bg-muted' }">
+  <UModal v-model:open="visible" title="Tạo link" :ui="{ content: 'max-w-2xl', footer: 'bg-muted' }">
     <template #body>
       <UForm :id="formId" :state="values" novalidate class="flex flex-col gap-4" @submit="onSubmit">
         <UAlert
@@ -185,7 +170,7 @@ function onSubmit() {
     <template #footer>
       <div class="flex w-full justify-end gap-2">
         <UButton color="neutral" variant="ghost" @click="visible = false">Hủy</UButton>
-        <UButton type="submit" :form="formId" :loading="isPending">Tạo</UButton>
+        <UButton type="submit" :form="formId" :loading="showPending">Tạo</UButton>
       </div>
     </template>
   </UModal>

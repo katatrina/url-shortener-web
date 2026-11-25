@@ -1,20 +1,33 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { ApiError } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { LINK_QUOTA, linkKeys, listLinks } from '@/api/links'
 import type { Link } from '@/api/types'
 import CreateLinkModal from '@/components/links/CreateLinkModal.vue'
 import DeleteLinkModal from '@/components/links/DeleteLinkModal.vue'
 import LinkRow from '@/components/links/LinkRow.vue'
+import LinksEmptyState from '@/components/links/LinksEmptyState.vue'
+import { useDelayedFlag } from '@/composables/useDelayedFlag'
 import { isHttpUrl } from '@/utils/validation'
 
 const HIGHLIGHT_MS = 3000
 
-const { data: links, isError, error, refetch, isFetching } = useQuery({
+const { data: links, isPending, isError, error, errorUpdateCount, refetch, isFetching } = useQuery({
   queryKey: linkKeys.all,
   queryFn: listLinks,
 })
+
+// The old list stays on screen when a refetch fails, so say that it may be out of date.
+const toast = useToast()
+watch(errorUpdateCount, () => {
+  const signedOut = error.value instanceof ApiError && error.value.status === 401
+  if (!links.value || signedOut) return
+  toast.add({ id: 'refetch', title: 'Không tải lại được danh sách', icon: 'i-lucide-circle-alert', color: 'error', close: false })
+})
+
+const showLoading = useDelayedFlag(isPending)
 
 const quotaReached = computed(() => (links.value?.length ?? 0) >= LINK_QUOTA)
 
@@ -74,8 +87,8 @@ onBeforeUnmount(() => {
           Link
           <span v-if="links" class="font-normal text-muted">({{ links.length }}/{{ LINK_QUOTA }})</span>
         </h1>
-        <UButton :disabled="quotaReached" @click="openCreate()">
-          Tạo link mới
+        <UButton size="lg" :disabled="quotaReached" @click="openCreate()">
+          Tạo link
           <template #trailing><UKbd value="c" variant="subtle" size="sm" /></template>
         </UButton>
       </div>
@@ -98,29 +111,64 @@ onBeforeUnmount(() => {
       </UAlert>
 
       <div v-else-if="!links" role="status" class="flex items-center justify-center gap-2 p-6 text-muted">
-        <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
-        Đang tải link
+        <template v-if="showLoading">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải link
+        </template>
       </div>
 
-      <UEmpty
-        v-else-if="!links.length"
-        icon="i-lucide-link"
-        title="Tạo link rút gọn đầu tiên để bắt đầu theo dõi lượt click"
-        :actions="[{ label: 'Tạo link đầu tiên', color: 'neutral', variant: 'outline', onClick: () => openCreate() }]"
-      />
+      <Transition v-else name="list" mode="out-in">
+        <LinksEmptyState v-if="!links.length" @create="openCreate()" />
 
-      <ul v-else class="flex flex-col gap-2" aria-label="Danh sách link">
-        <LinkRow
-          v-for="link in links"
-          :key="link.id"
-          :link="link"
-          :highlighted="link.id === highlightId"
-          @delete="confirmDelete(link)"
-        />
-      </ul>
+        <TransitionGroup v-else tag="ul" name="row" class="relative space-y-2" aria-label="Danh sách link">
+          <LinkRow
+            v-for="link in links"
+            :key="link.id"
+            :link="link"
+            :highlighted="link.id === highlightId"
+            @delete="confirmDelete(link)"
+          />
+        </TransitionGroup>
+      </Transition>
     </div>
 
     <CreateLinkModal v-model:visible="createOpen" :initial-url="initialUrl" @created="onCreated" />
     <DeleteLinkModal v-model:visible="deleteOpen" :link="linkToDelete" @closed="heading?.focus()" />
   </div>
 </template>
+
+<style scoped>
+/* Between the list and the empty state. */
+.list-enter-active,
+.list-leave-active {
+  transition: opacity 200ms ease-out;
+}
+
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+}
+
+.row-enter-active,
+.row-leave-active,
+.row-move {
+  transition:
+    opacity 200ms ease-out,
+    transform 200ms ease-out;
+}
+
+.row-enter-from,
+.row-leave-to {
+  opacity: 0;
+}
+
+.row-enter-from {
+  transform: translateY(-8px);
+}
+
+/* Out of the flow, so the rows below can slide up. */
+.row-leave-active {
+  position: absolute;
+  inset-inline: 0;
+}
+</style>
