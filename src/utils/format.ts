@@ -28,15 +28,6 @@ export function formatNumber(value: number): string {
   return numberFormat.format(value)
 }
 
-/** Host name of a URL without `www.`, e.g. `example.com`. Returns the input when it is not a URL. */
-export function urlDomain(url: string): string {
-  try {
-    return new URL(url).hostname.replace(/^www\./, '')
-  } catch {
-    return url
-  }
-}
-
 /** Vietnamese country name of an ISO 3166-1 alpha-2 code. */
 export function countryName(code: string): string {
   if (!/^[A-Za-z]{2}$/.test(code)) return 'Không xác định'

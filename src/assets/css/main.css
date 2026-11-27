@@ -1,0 +1,77 @@
+/*
+ * Theme for lnky: neutral, quiet, readable.
+ * Every color, radius and font used by components comes from here.
+ * Components use the semantic classes (text-muted, bg-elevated, border-default, …),
+ * never raw palette classes (text-gray-500, bg-blue-600) or hex values.
+ */
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "@fontsource-variable/inter/wght.css";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+:root {
+  /* Primary actions are near-black, one per screen or modal. */
+  --ui-primary: var(--ui-color-neutral-900);
+
+  /*
+   * Text levels, one step darker than Nuxt UI's defaults so secondary text
+   * doesn't look washed out. Contrast on white:
+   *   highlighted neutral-900  ≈ 17:1   headings, key values
+   *   default     neutral-800  ≈ 15:1   body text
+   *   toned       neutral-700  ≈ 10:1   labels
+   *   muted       neutral-600  ≈ 7.8:1  secondary text: dates, counts, destination URLs
+   *   dimmed      neutral-500  ≈ 4.7:1  placeholders and disabled only
+   */
+  --ui-text-highlighted: var(--ui-color-neutral-900);
+  --ui-text: var(--ui-color-neutral-800);
+  --ui-text-toned: var(--ui-color-neutral-700);
+  --ui-text-muted: var(--ui-color-neutral-600);
+  --ui-text-dimmed: var(--ui-color-neutral-500);
+
+  /*
+   * Surfaces and borders: the big blocks contrast, what's inside them stays light.
+   *   accented  neutral-200  app background
+   *   elevated  neutral-100  sidebar, button hover, highlighted row
+   *   muted     neutral-50   modal footer
+   *   default   white        content panel, cards
+   */
+  --ui-bg-muted: var(--ui-color-neutral-50);
+  --ui-bg-elevated: var(--ui-color-neutral-100);
+  --ui-bg-accented: var(--ui-color-neutral-200);
+  --ui-border: var(--ui-color-neutral-200);
+  --ui-border-accented: var(--ui-color-neutral-300);
+
+  /* Selected nav item and data. One step darker than the default, so text in it stays readable. */
+  --ui-info: var(--ui-color-info-600);
+
+  /* Radius base: inputs and buttons (rounded-md) 9px, cards and modals (rounded-lg) 12px. */
+  --ui-radius: 0.375rem;
+
+  /* Charts: data in blue, not in the black primary. */
+  --ui-chart-1: var(--ui-color-info-500);
+}
+
+html:not(:has([data-app-shell])) {
+  /* Keep space for the scrollbar so the page doesn't shift when it appears. The app shell scrolls its own panel. */
+  scrollbar-gutter: stable;
+}
+
+/* Tailwind v4 leaves buttons with the arrow cursor. In the base layer, so cursor-* utilities still win. */
+@layer base {
+  :is(button, [role="button"], [role="menuitem"], [role="option"]):not(:disabled, [aria-disabled="true"], [data-disabled]) {
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}

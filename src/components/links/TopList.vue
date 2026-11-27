@@ -9,60 +9,18 @@ defineProps<{
 </script>
 
 <template>
-  <ol class="top-list">
-    <li v-for="item in items" :key="item.key">
-      <div class="top-list__row">
-        <span class="top-list__text">{{ item.text }}</span>
-        <span class="top-list__value">
-          {{ formatNumber(item.clicks) }}
-          <span class="top-list__share">({{ Math.round((item.clicks / total) * 100) }}%)</span>
-        </span>
-      </div>
-      <div class="top-list__track" aria-hidden="true">
-        <div class="top-list__bar" :style="{ width: `${(item.clicks / total) * 100}%` }"></div>
-      </div>
+  <ol class="flex flex-col gap-1">
+    <li v-for="item in items" :key="item.key" class="relative flex items-center justify-between gap-4 px-3 py-2">
+      <div
+        class="absolute inset-y-0 left-0 rounded-md bg-info/10"
+        aria-hidden="true"
+        :style="{ width: `${(item.clicks / total) * 100}%` }"
+      />
+      <span class="relative min-w-0 truncate" :title="item.text">{{ item.text }}</span>
+      <span class="relative whitespace-nowrap font-medium text-highlighted">
+        {{ formatNumber(item.clicks) }}
+        <span class="font-normal text-muted">({{ Math.round((item.clicks / total) * 100) }}%)</span>
+      </span>
     </li>
   </ol>
 </template>
-
-<style scoped>
-.top-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-s);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.top-list__row {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-static-m);
-}
-
-.top-list__text {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.top-list__value {
-  white-space: nowrap;
-}
-
-.top-list__share {
-  color: var(--color-text-body-secondary);
-}
-
-.top-list__track {
-  margin-top: var(--space-static-xxs);
-  border-radius: 4px;
-  background: var(--color-background-progress-bar-default);
-}
-
-.top-list__bar {
-  height: 12px;
-  border-radius: 4px;
-  background: var(--color-charts-palette-categorical-1);
-}
-</style>

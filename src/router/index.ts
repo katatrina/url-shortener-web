@@ -47,7 +47,8 @@ router.beforeEach(async (to) => {
   restored ??= auth.restore()
   await restored
 
-  if (to.meta.requiresAuth && !auth.isAuthenticated) {
+  // With a restore error, App shows it in place of the page.
+  if (to.meta.requiresAuth && !auth.isAuthenticated && !auth.restoreError) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
   if (to.meta.guestOnly && auth.isAuthenticated) {

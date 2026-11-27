@@ -4,7 +4,6 @@ import { getMe } from '@/api/auth'
 import { ApiError } from '@/api/client'
 import { queryClient } from '@/api/queryClient'
 import type { User } from '@/api/types'
-import { useFlashStore } from './flash'
 
 const TOKEN_KEY = 'accessToken'
 
@@ -29,21 +28,25 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string | null>(readToken())
   const user = ref<User | null>(null)
 
+  /** Why a stored token could not be checked (network or server error); the token is kept. */
+  const restoreError = ref<unknown>(null)
+
   const isAuthenticated = computed(() => token.value !== null && user.value !== null)
 
   function setSession(nextToken: string, nextUser: User): void {
     token.value = nextToken
     user.value = nextUser
+    restoreError.value = null
     writeToken(nextToken)
   }
 
   function logout(): void {
     token.value = null
     user.value = null
+    restoreError.value = null
     writeToken(null)
-    // Drop cached data and notifications of the previous user.
+    // Drop cached data of the previous user.
     queryClient.clear()
-    useFlashStore().clear()
   }
 
   /** Loads the user for a stored token. Clears the token when the backend rejects it. */
@@ -51,16 +54,17 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
     try {
       user.value = await getMe({ skipUnauthorizedHandler: true })
+      restoreError.value = null
     } catch (err) {
       if (err instanceof ApiError && (err.status === 401 || err.code === 'USER_NOT_FOUND')) {
         logout()
         return
       }
-      // Network or server error: keep the token so a reload can retry, but stay signed out for now.
+      // Network or server error: keep the token, so the user can retry.
       user.value = null
-      console.warn('Could not restore session', err)
+      restoreError.value = err
     }
   }
 
-  return { token, user, isAuthenticated, setSession, logout, restore }
+  return { token, user, restoreError, isAuthenticated, setSession, logout, restore }
 })

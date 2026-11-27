@@ -5,24 +5,17 @@ import { useQuery } from '@tanstack/vue-query'
 import { errorMessage } from '@/api/errors'
 import { getLinkStats, linkKeys } from '@/api/links'
 import type { StatsRange } from '@/api/types'
-import CsAlert from '@/components/cs/CsAlert.vue'
-import CsBarChart, { type BarChartItem } from '@/components/cs/CsBarChart.vue'
-import CsButton from '@/components/cs/CsButton.vue'
-import CsContainer from '@/components/cs/CsContainer.vue'
-import CsHeader from '@/components/cs/CsHeader.vue'
-import CsSegmentedControl from '@/components/cs/CsSegmentedControl.vue'
-import CsSpinner from '@/components/cs/CsSpinner.vue'
 import StatCard from '@/components/StatCard.vue'
 import { countryName, formatDate, formatNumber, formatTime } from '@/utils/format'
 import TopList from './TopList.vue'
 
 const UNKNOWN = '(unknown)'
 
-const RANGES: { id: StatsRange; text: string }[] = [
-  { id: '24h', text: '24 giờ' },
-  { id: '7d', text: '7 ngày' },
-  { id: '30d', text: '30 ngày' },
-  { id: '90d', text: '90 ngày' },
+const RANGES: { value: StatsRange; label: string }[] = [
+  { value: '24h', label: '24 giờ' },
+  { value: '7d', label: '7 ngày' },
+  { value: '30d', label: '30 ngày' },
+  { value: '90d', label: '90 ngày' },
 ]
 
 /** `totalClicks` is all-time; unknown while the link loads. */
@@ -31,7 +24,7 @@ const props = defineProps<{ linkId: string; totalClicks?: number }>()
 const route = useRoute()
 const router = useRouter()
 
-const queryRange = () => RANGES.find((option) => option.id === route.query.range)?.id ?? '7d'
+const queryRange = () => RANGES.find((option) => option.value === route.query.range)?.value ?? '7d'
 
 // Ignore query changes caused by leaving the page, which would refetch for nothing.
 const range = ref<StatsRange>(queryRange())
@@ -61,7 +54,7 @@ const {
 
 const clicks = computed(() => stats.value?.summary.clicks ?? 0)
 
-const rangeText = computed(() => RANGES.find((option) => option.id === range.value)?.text)
+const rangeText = computed(() => RANGES.find((option) => option.value === range.value)?.label)
 
 const comparison = computed(() => {
   const previous = stats.value?.summary.previousClicks
@@ -70,16 +63,21 @@ const comparison = computed(() => {
   const versus = `so với khoảng trước (${formatNumber(previous)})`
   if (clicks.value === previous) return `Không đổi ${versus}`
   const percent = formatNumber(Math.round((Math.abs(clicks.value - previous) / previous) * 100))
-  return `${clicks.value > previous ? '▲ Tăng' : '▼ Giảm'} ${percent}% ${versus}`
+  return `${clicks.value > previous ? 'Tăng' : 'Giảm'} ${percent}% ${versus}`
 })
 
-const chartItems = computed<BarChartItem[]>(() => {
+const trendIcon = computed(() => {
+  const previous = stats.value?.summary.previousClicks
+  if (!previous || clicks.value === previous) return null
+  return clicks.value > previous ? 'i-lucide-trending-up' : 'i-lucide-trending-down'
+})
+
+const chartItems = computed(() => {
   const hourly = stats.value?.granularity === 'hour'
   return (stats.value?.timeseries ?? []).map(({ timestamp, clicks: value }) => ({
-    key: timestamp,
-    label: hourly ? formatTime(timestamp) : formatDate(timestamp).slice(0, 5),
-    title: hourly ? `${formatTime(timestamp)} ${formatDate(timestamp)}` : formatDate(timestamp),
-    value,
+    // Unique within a range: the 24 hour range needs the day too.
+    time: hourly ? `${formatTime(timestamp)} ${formatDate(timestamp).slice(0, 5)}` : formatDate(timestamp).slice(0, 5),
+    clicks: value,
   }))
 })
 
@@ -101,88 +99,104 @@ const referrers = computed(() =>
 </script>
 
 <template>
-  <section class="stats" aria-label="Thống kê">
-    <CsHeader variant="h2">
-      Thống kê
+  <section class="flex flex-col gap-4" aria-label="Thống kê">
+    <div class="flex items-center justify-between gap-4">
+      <h2 class="text-lg font-semibold text-highlighted">Thống kê</h2>
+      <USelect
+        :model-value="range"
+        :items="RANGES"
+        icon="i-lucide-calendar"
+        color="neutral"
+        class="w-40"
+        aria-label="Khoảng thời gian"
+        @update:model-value="selectRange"
+      />
+    </div>
+
+    <UAlert
+      v-if="error && !stats"
+      role="alert"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-circle-alert"
+      title="Không tải được thống kê"
+      :description="errorMessage(error)"
+      orientation="horizontal"
+    >
       <template #actions>
-        <CsSegmentedControl
-          :selected-id="range"
-          :options="RANGES"
-          label="Khoảng thời gian"
-          @update:selected-id="selectRange"
-        />
+        <UButton color="neutral" variant="outline" :loading="isFetching" @click="refetch()">Thử lại</UButton>
       </template>
-    </CsHeader>
+    </UAlert>
 
-    <CsAlert v-if="error && !stats" type="error" header="Không tải được thống kê">
-      {{ errorMessage(error) }}
-      <template #action>
-        <CsButton :loading="isFetching" @click="refetch()">Thử lại</CsButton>
-      </template>
-    </CsAlert>
+    <div v-else class="grid grid-cols-2 gap-4" :class="isPlaceholderData && 'opacity-60'" :aria-busy="isFetching">
+      <UCard class="col-span-2" :ui="{ header: 'p-0 sm:p-0' }">
+        <template #header>
+          <div class="grid grid-cols-2 divide-x divide-default">
+            <StatCard :label="`Lượt click trong ${rangeText} qua`">
+              {{ stats ? formatNumber(clicks) : '–' }}
+              <template #detail>
+                <span class="flex items-center gap-1">
+                  <UIcon v-if="trendIcon" :name="trendIcon" class="size-4" />
+                  {{ comparison ?? '\u00a0' }}
+                </span>
+              </template>
+            </StatCard>
+            <StatCard label="Tổng lượt click">
+              {{ totalClicks === undefined ? '–' : formatNumber(totalClicks) }}
+              <template #detail>Toàn thời gian</template>
+            </StatCard>
+          </div>
+        </template>
 
-    <div v-else class="stats__grid" :class="isPlaceholderData && 'stats__grid--stale'" :aria-busy="isFetching">
-      <StatCard :label="`Lượt click trong ${rangeText} qua`">
-        {{ stats ? formatNumber(clicks) : '–' }}
-        <template #detail>{{ comparison ?? '\u00a0' }}</template>
-      </StatCard>
-      <StatCard label="Tổng lượt click">
-        {{ totalClicks === undefined ? '–' : formatNumber(totalClicks) }}
-        <template #detail>Toàn thời gian</template>
-      </StatCard>
+        <div v-if="!stats" role="status" class="flex h-64 items-center justify-center gap-2 text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải
+        </div>
+        <template v-else-if="clicks">
+          <UChart
+            type="area"
+            :data="chartItems"
+            index="time"
+            :categories="[{ key: 'clicks', label: 'Lượt click' }]"
+            :format="formatNumber"
+            :height="256"
+            aria-label="Lượt click theo thời gian"
+          />
+          <div class="sr-only">
+            <table>
+              <caption>Lượt click theo thời gian</caption>
+              <thead>
+                <tr><th scope="col">Thời gian</th><th scope="col">Lượt click</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in chartItems" :key="item.time">
+                  <th scope="row">{{ item.time }}</th>
+                  <td>{{ formatNumber(item.clicks) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </template>
+        <div v-else class="flex h-64 items-center justify-center text-muted">Chưa có lượt click nào</div>
+      </UCard>
 
-      <CsContainer class="stats__chart">
-        <template #header><CsHeader variant="h3">Lượt click theo thời gian</CsHeader></template>
-        <CsSpinner v-if="!stats" />
-        <CsBarChart
-          v-else-if="clicks"
-          :items="chartItems"
-          label="Lượt click theo thời gian"
-          category-label="Thời gian"
-          value-label="lượt click"
-        />
-        <div v-else class="stats__empty">Chưa có lượt click nào</div>
-      </CsContainer>
-
-      <CsContainer>
-        <template #header><CsHeader variant="h3">Top quốc gia</CsHeader></template>
-        <CsSpinner v-if="!stats" />
+      <UCard title="Top quốc gia">
+        <div v-if="!stats" role="status" class="flex items-center justify-center gap-2 text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải
+        </div>
         <TopList v-else-if="clicks" :items="countries" :total="clicks" />
-        <div v-else class="stats__empty">Chưa có lượt click nào</div>
-      </CsContainer>
+        <div v-else class="text-center text-muted">Chưa có lượt click nào</div>
+      </UCard>
 
-      <CsContainer>
-        <template #header><CsHeader variant="h3">Top nguồn truy cập</CsHeader></template>
-        <CsSpinner v-if="!stats" />
+      <UCard title="Top nguồn truy cập">
+        <div v-if="!stats" role="status" class="flex items-center justify-center gap-2 text-muted">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải
+        </div>
         <TopList v-else-if="clicks" :items="referrers" :total="clicks" />
-        <div v-else class="stats__empty">Chưa có lượt click nào</div>
-      </CsContainer>
+        <div v-else class="text-center text-muted">Chưa có lượt click nào</div>
+      </UCard>
     </div>
   </section>
 </template>
-
-<style scoped>
-.stats {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-l);
-}
-
-.stats__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-scaled-l);
-}
-
-.stats__grid--stale {
-  opacity: 0.6;
-}
-
-.stats__chart {
-  grid-column: 1 / -1;
-}
-
-.stats__empty {
-  color: var(--color-text-empty);
-}
-</style>

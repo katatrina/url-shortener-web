@@ -1,36 +1,67 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { ApiError } from '@/api/client'
 import { errorMessage } from '@/api/errors'
 import { LINK_QUOTA, linkKeys, listLinks } from '@/api/links'
 import type { Link } from '@/api/types'
-import CsAlert from '@/components/cs/CsAlert.vue'
-import CsButton from '@/components/cs/CsButton.vue'
-import CsContainer from '@/components/cs/CsContainer.vue'
-import CsHeader from '@/components/cs/CsHeader.vue'
-import CsSpinner from '@/components/cs/CsSpinner.vue'
 import CreateLinkModal from '@/components/links/CreateLinkModal.vue'
 import DeleteLinkModal from '@/components/links/DeleteLinkModal.vue'
 import LinkRow from '@/components/links/LinkRow.vue'
+import LinksEmptyState from '@/components/links/LinksEmptyState.vue'
+import { useDelayedFlag } from '@/composables/useDelayedFlag'
+import { isHttpUrl } from '@/utils/validation'
 
 const HIGHLIGHT_MS = 3000
 
-const { data: links, isError, error, refetch, isFetching } = useQuery({
+const { data: links, isPending, isError, error, errorUpdateCount, refetch, isFetching } = useQuery({
   queryKey: linkKeys.all,
   queryFn: listLinks,
 })
 
-const counter = computed(() => (links.value ? `(${links.value.length}/${LINK_QUOTA})` : undefined))
+// The old list stays on screen when a refetch fails, so say that it may be out of date.
+const toast = useToast()
+watch(errorUpdateCount, () => {
+  const signedOut = error.value instanceof ApiError && error.value.status === 401
+  if (!links.value || signedOut) return
+  toast.add({ id: 'refetch', title: 'Không tải lại được danh sách', icon: 'i-lucide-circle-alert', color: 'error', close: false })
+})
+
+const showLoading = useDelayedFlag(isPending)
+
 const quotaReached = computed(() => (links.value?.length ?? 0) >= LINK_QUOTA)
 
 const createOpen = ref(false)
 const deleteOpen = ref(false)
 const linkToDelete = ref<Link | null>(null)
 
+const heading = ref<HTMLElement | null>(null)
+
 function confirmDelete(link: Link) {
   linkToDelete.value = link
   deleteOpen.value = true
 }
+
+const initialUrl = ref('')
+
+function openCreate(url = '') {
+  if (quotaReached.value || createOpen.value || deleteOpen.value) return
+  initialUrl.value = url
+  createOpen.value = true
+}
+
+// Plain "c" only: defineShortcuts ignores it while typing in an input.
+defineShortcuts({ c: () => openCreate() })
+
+// Pasting a URL anywhere on the page opens the form with it.
+function onPaste(event: ClipboardEvent) {
+  const target = event.target
+  if (target instanceof HTMLElement && target.closest('input, textarea, [contenteditable]')) return
+  const text = event.clipboardData?.getData('text').trim() ?? ''
+  if (isHttpUrl(text)) openCreate(text)
+}
+
+onMounted(() => document.addEventListener('paste', onPaste))
 
 // Briefly highlight a newly created link so it's easy to spot.
 const highlightId = ref<string | null>(null)
@@ -42,136 +73,102 @@ function onCreated(link: Link) {
   highlightTimer = setTimeout(() => (highlightId.value = null), HIGHLIGHT_MS)
 }
 
-onBeforeUnmount(() => clearTimeout(highlightTimer))
+onBeforeUnmount(() => {
+  clearTimeout(highlightTimer)
+  document.removeEventListener('paste', onPaste)
+})
 </script>
 
 <template>
-  <div class="links-page">
-    <CsHeader variant="h1" :counter="counter" description="">
-      Link
-      <template #actions>
-        <CsButton variant="primary" :disabled="quotaReached" @click="createOpen = true">Tạo link mới</CsButton>
-      </template>
-    </CsHeader>
-
-    <CsAlert v-if="isError && !links" type="error" header="Không tải được danh sách link">
-      {{ errorMessage(error) }}
-      <template #action>
-        <CsButton :loading="isFetching" @click="refetch()">Thử lại</CsButton>
-      </template>
-    </CsAlert>
-
-    <CsContainer v-else disable-content-paddings>
-      <CsSpinner v-if="!links" text="Đang tải link" />
-      <div v-else-if="!links.length" class="links-page__empty">
-        <div>
-          <b>Chưa có link nào</b>
-          <p>Tạo link rút gọn đầu tiên để bắt đầu theo dõi lượt click.</p>
-        </div>
-        <CsButton @click="createOpen = true">Tạo link đầu tiên</CsButton>
+  <div>
+    <header class="border-b border-default">
+      <div class="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-6">
+        <h1 ref="heading" tabindex="-1" class="text-lg font-semibold text-highlighted outline-none">
+          Link
+          <span v-if="links" class="font-normal text-muted">({{ links.length }}/{{ LINK_QUOTA }})</span>
+        </h1>
+        <UButton size="lg" :disabled="quotaReached" @click="openCreate()">
+          Tạo link
+          <template #trailing><UKbd value="c" variant="subtle" size="sm" /></template>
+        </UButton>
       </div>
-      <table v-else class="cs-table links-page__table" aria-label="Danh sách link">
-        <thead>
-          <tr>
-            <th scope="col"><span><span class="cs-sr-only">Link</span></span></th>
-            <th scope="col" class="links-page__col-url"><span>URL đích</span></th>
-            <th scope="col" class="links-page__col-date"><span>Ngày tạo</span></th>
-            <th scope="col" class="links-page__col-clicks"><span>Tổng lượt click</span></th>
-            <th scope="col" class="links-page__col-actions"><span><span class="cs-sr-only">Thao tác</span></span></th>
-          </tr>
-        </thead>
-        <tbody>
+    </header>
+
+    <div class="mx-auto max-w-7xl p-6">
+      <UAlert
+        v-if="isError && !links"
+        role="alert"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-circle-alert"
+        title="Không tải được danh sách link"
+        :description="errorMessage(error)"
+        orientation="horizontal"
+      >
+        <template #actions>
+          <UButton color="neutral" variant="outline" :loading="isFetching" @click="refetch()">Thử lại</UButton>
+        </template>
+      </UAlert>
+
+      <div v-else-if="!links" role="status" class="flex items-center justify-center gap-2 p-6 text-muted">
+        <template v-if="showLoading">
+          <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
+          Đang tải link
+        </template>
+      </div>
+
+      <Transition v-else name="list" mode="out-in">
+        <LinksEmptyState v-if="!links.length" @create="openCreate()" />
+
+        <TransitionGroup v-else tag="ul" name="row" class="relative space-y-2" aria-label="Danh sách link">
           <LinkRow
             v-for="link in links"
             :key="link.id"
-            :class="link.id === highlightId && 'links-page__row--new'"
             :link="link"
+            :highlighted="link.id === highlightId"
             @delete="confirmDelete(link)"
           />
-        </tbody>
-      </table>
-    </CsContainer>
+        </TransitionGroup>
+      </Transition>
+    </div>
 
-    <CreateLinkModal v-model:visible="createOpen" @created="onCreated" />
-    <DeleteLinkModal v-model:visible="deleteOpen" :link="linkToDelete" />
+    <CreateLinkModal v-model:visible="createOpen" :initial-url="initialUrl" @created="onCreated" />
+    <DeleteLinkModal v-model:visible="deleteOpen" :link="linkToDelete" @closed="heading?.focus()" />
   </div>
 </template>
 
 <style scoped>
-.links-page {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-scaled-xl);
+/* Between the list and the empty state. */
+.list-enter-active,
+.list-leave-active {
+  transition: opacity 200ms ease-out;
 }
 
-.links-page__table {
-  table-layout: fixed;
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
 }
 
-.links-page__col-url {
-  width: 28%;
+.row-enter-active,
+.row-leave-active,
+.row-move {
+  transition:
+    opacity 200ms ease-out,
+    transform 200ms ease-out;
 }
 
-.links-page__col-date {
-  width: 130px;
+.row-enter-from,
+.row-leave-to {
+  opacity: 0;
 }
 
-.links-page__table .links-page__col-clicks {
-  width: 150px;
-  text-align: end;
+.row-enter-from {
+  transform: translateY(-8px);
 }
 
-.links-page__col-actions {
-  width: 72px;
-}
-
-/* Some column names are hidden, so the vertical dividers would float next to empty cells. */
-.links-page__table thead th:not(:last-child) > span::after {
-  content: none;
-}
-
-/* Keep cell backgrounds inside the container's rounded corners. */
-.links-page__table th:first-child {
-  border-start-start-radius: var(--border-radius-container);
-}
-
-.links-page__table th:last-child {
-  border-start-end-radius: var(--border-radius-container);
-}
-
-.links-page__table :deep(tbody tr:last-child td:first-child) {
-  border-end-start-radius: var(--border-radius-container);
-}
-
-.links-page__table :deep(tbody tr:last-child td:last-child) {
-  border-end-end-radius: var(--border-radius-container);
-}
-
-.links-page__table :deep(.links-page__row--new td) {
-  animation: links-item-new 3s ease-in;
-}
-
-@keyframes links-item-new {
-  from {
-    background: var(--color-background-item-selected);
-  }
-}
-
-.links-page__empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-scaled-s);
-  padding: var(--space-scaled-xxxl) var(--space-container-horizontal);
-  color: var(--color-text-empty);
-  text-align: center;
-}
-
-.links-page__empty b {
-  color: var(--color-text-body-default);
-}
-
-.links-page__empty p {
-  margin: var(--space-static-xxxs) 0 0;
+/* Out of the flow, so the rows below can slide up. */
+.row-leave-active {
+  position: absolute;
+  inset-inline: 0;
 }
 </style>

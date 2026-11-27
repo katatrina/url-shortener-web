@@ -10,6 +10,10 @@ export const queryClient = new QueryClient({
         return failureCount < 2
       },
       refetchOnWindowFocus: false,
+      // Fail when offline. The default pauses requests and runs them once back online, with no error to show.
+      networkMode: 'always',
+      refetchOnReconnect: true,
     },
+    mutations: { networkMode: 'always' },
   },
 })
